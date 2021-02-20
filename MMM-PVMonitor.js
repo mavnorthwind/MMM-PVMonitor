@@ -165,6 +165,8 @@ Module.register("MMM-PVMonitor",{
 		var arrowDownImage = self.file("Images/Arrow_Down_G.svg");
 		var arrowLeftImage = self.file("Images/Arrow_Left_O.svg");
 		var arrowRightImage = self.file("Images/Arrow_Right_G.svg");
+		var arrowRightDownImage = self.file("Images/Arrow_RightDown_G.svg");
+		var arrowRightUpImage = self.file("Images/Arrow_RightUp_G.svg");
 
 		var flowPV2STORAGE = self.hasFlow(powerFlow, "PV", "STORAGE") ? "" : "off";
 		var flowPV2LOAD = self.hasFlow(powerFlow, "PV", "Load") ? "" : "off";
@@ -185,7 +187,7 @@ Module.register("MMM-PVMonitor",{
             <tr>
                 <td class="MMPV_TD">
                     <span class="${flowPV2STORAGE} overlayBelow"><img src="${arrowDownImage}" /></span>
-                    <span class="${flowPV2LOAD} overlayRight"><img src="${arrowRightImage}" /></span>
+                    <span class="${flowPV2LOAD} overlayRight"><img src="${arrowRightDownImage}" /></span>
                     <img src="${pvImage}" />
                 </td>
                 <td class="MMPV_TD" rowspan="2"><img src="${loadImage}" /></td>
@@ -197,7 +199,7 @@ Module.register("MMM-PVMonitor",{
             </tr>
             <tr>
                 <td class="MMPV_TD ${storageClass}">
-                    <span class="${flowSTORAGE2LOAD} overlayRight"><img src="${arrowRightImage}" /></span>
+                    <span class="${flowSTORAGE2LOAD} overlayRight"><img src="${arrowRightUpImage}" /></span>
                     <img class="storageImage" src="${storageImage}" />
 					<img class="${chargingClass}" src="${chargingImage}" />
                     <div class="percentage">${storageCharge} %</div>
