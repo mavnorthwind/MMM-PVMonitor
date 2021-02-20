@@ -14,6 +14,8 @@ Module.register("MMM-PVMonitor",{
 	requestCount: 0,
 	lastError: undefined,
 	html: "Loading...",
+	maxPower: 0,
+	maxPowerTimestamp: undefined,
 
 	start: function() {
 		var self = this;
@@ -40,6 +42,11 @@ Module.register("MMM-PVMonitor",{
 			self.powerFlow = payload.powerflow;
 			self.requestCount = payload.requestCount;
 			self.timestamp = new Date();
+			if (self.powerFlow.PV.currentPower >= self.maxPower) {
+				self.maxPower = self.powerFlow.PV.currentPower;
+				self.maxPowerTimestamp = new Date();
+				console.log(`Module ${self.name}: New max power ${self.maxPower} ${self.powerFlow.unit} at ${self.maxPowerTimestamp.toLocaleString()}`);
+			}
 			self.updateDom(0);
 		}
 
