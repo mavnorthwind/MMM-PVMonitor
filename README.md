@@ -1,6 +1,8 @@
 # MMM-PVMonitor
 Show SolarEdge Inverter data on your Magic Mirror
 
+![Screenshot](Screenshot.JPG)
+
 ## Configuration
 - siteId: Enter the site ID from the SolarEdge monitoring portal
 - apiKey: Enter the apiKey generated in the SolarEdge monitoring portal
