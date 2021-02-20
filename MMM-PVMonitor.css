@@ -11,13 +11,13 @@ th {
 */
 
 .MMPV_TH {
-    border: solid black 1px; 
+    border: solid #888 1px; 
     text-align: center;
     font-weight: normal;
 }
 
 .MMPV_TD {
-    border: solid black 1px; 
+    border: solid #888 1px; 
     text-align: center;
     width: 120px;
     height: 120px;
