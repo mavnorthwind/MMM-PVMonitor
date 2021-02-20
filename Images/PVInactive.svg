@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="96px" height="96px" viewBox="0 0 96 96" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 48.2 (47327) - http://www.bohemiancoding.com/sketch -->
+    <title>ico_pv_disabled</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" opacity="0.400000006">
+        <g id="PV" transform="translate(0.000000, -252.000000)">
+            <g id="ico_pv_disabled" transform="translate(0.000000, 252.000000)">
+                <g id="ico_pv_disabled_shapes" transform="translate(12.000000, 46.000000)">
+                    <polygon id="Rectangle-15-Copy" fill="#ABABAB" points="10 2 61 2 70 32 1 32"></polygon>
+                    <path d="M10.1773509,1 L1.31460585,33 L70.6853942,33 L61.8226491,1 L10.1773509,1 Z" id="Rectangle-7" stroke="#666666" stroke-width="2"></path>
+                    <path d="M18.1384412,33.0570747 L22.5707353,1.05707469" id="Line" stroke="#666666" stroke-width="2" stroke-linecap="square"></path>
+                    <path d="M8.39215686,10 L63.9674964,10" id="Line" stroke="#666666" stroke-width="2" stroke-linecap="square"></path>
+                    <path d="M5.53056917,21 L66.8663627,21" id="Line" stroke="#666666" stroke-width="2" stroke-linecap="square"></path>
+                    <path d="M36,33.0570747 L36,1.05707469" id="Line" stroke="#666666" stroke-width="2" stroke-linecap="square"></path>
+                    <path d="M53.8615588,33.0570747 L49.4292647,1.05707469" id="Line" stroke="#666666" stroke-width="2" stroke-linecap="square"></path>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

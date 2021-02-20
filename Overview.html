@@ -1,0 +1,35 @@
+<html>
+    <head>
+        <link rel="stylesheet" href="MMM-PVMonitor.css" />
+    </head>
+    <body>
+        <table>
+            <tr>
+                <th>1.73 kW</td>
+                <th>2.40 kW</td>
+                <th>0.67 kW</td>
+            </tr>
+            <tr>
+                <td class="MMPV_TD">
+                    <span class="storageAvailable overlayBelow"><img src="Images/Arrow_Down_G.svg" /></span>
+                    <span class="on overlayRight"><img src="Images/Arrow_Right_G.svg" /></span>
+                    <img class="bg2" src="Images/PVActive.svg" />
+                </td>
+                <td class="MMPV_TD" rowspan="2"><img src="Images/LoadActive.svg"/></td>
+                <td class="MMPV_TD" rowspan="2">
+                    <span class="on overlayLeft"><img src="Images/Arrow_Left_O.svg" /></span>
+                    <span class="off overlayLeft"><img src="Images/Arrow_Right_G.svg" /></span>
+                    <img src="Images/GridActive.svg"/>
+                </td>
+            </tr>
+            <tr>
+                <td class="MMPV_TD" class="storageAvailable">
+                    <span class="off overlayRight"><img src="Images/Arrow_Right_G.svg" /></span>
+                    <img class="bg2" src="Images/EL_50.svg" />
+                    <div class="percentage">54%</div>
+                    <div class="storage">4.15 kWh</div>
+                </td>
+            </tr>
+        </table>
+    </body>
+</html>

@@ -1,0 +1,92 @@
+/*
+table {
+    border: solid black 1px; 
+    border-collapse: collapse;
+    font-family: "Arial";
+}
+
+th {
+    border: solid black 1px; 
+}
+*/
+
+.MMPV_TH {
+    border: solid black 1px; 
+    text-align: center;
+    font-weight: normal;
+}
+
+.MMPV_TD {
+    border: solid black 1px; 
+    text-align: center;
+    width: 120px;
+    height: 120px;
+    position: relative;
+}
+
+.chargingImage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+}
+
+.discharging {
+    display: none;
+}
+
+.storageImage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+}
+
+.percentage {
+    font-size: small;
+    position: absolute;
+    width: 100%;
+    text-align: center;
+}
+
+.storagePower {
+    font-size: medium;
+    font-weight: bold;
+    position: absolute;
+    width: 100%;
+    top: 10%;
+    text-align: center;
+}
+
+.on {
+    display: table-cell;
+}
+.off {
+    display: none;
+}
+
+.overlayBelow {
+    z-index: 1000;
+    position: absolute;
+    top: calc(100% - 28px); /* 28 px = 1/2 overlay image height */
+    left: calc(50% - 28px); /* 28 px = 1/2 overlay image width */
+}
+
+.overlayRight {
+    z-index: 1000;
+    position: absolute;
+    left: calc(100% - 28px);
+    top: calc(50% - 28px);
+}
+
+.overlayLeft {
+    z-index: 1000;
+    position: absolute;
+    left: -28px;
+    top: calc(50% - 28px);
+}
+
+.error {
+    font-size: small;
+    color: red;
+}

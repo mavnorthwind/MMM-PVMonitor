@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="56px" height="56px" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>dashboard_arrow_green_right</title>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <!-- <rect fill="#ffffff" x="0" y="0" width="56" height="56" /> -->
+        <polygon id="arrow_green_shape" fill="#00AA55" points="42.73 31.994 34.7114258 40.1242676 39.6848145 45.1555176 56.028 28.494 39.6848145 11.7026367 35.014 16.8562012 42.731 24.994 14.001 24.994 14.001 31.994"></polygon>
+    </g>
+</svg>

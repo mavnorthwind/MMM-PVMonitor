@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="60px" height="32px" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>ico_bat_70</title>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <rect id="FillRect" fill="#00A000" x="2" y="2" width="35" height="28"></rect>
+        <polygon id="Contact" fill="#666666" points="55 24 55 8 60 12 60 20"></polygon>
+        <path id="Outline" fill="#666666" d="M54,4 L54,28 C54,29.1 53.1,30 52,30 L4,30 C2.9,30 2,29.1 2,28 L2,4 C2,2.9 2.9,2 4,2 L52,2 C53.1,2 54,2.9 54,4 Z M4,0 C1.8,0 0,1.8 0,4 L0,28 C0,30.2 1.8,32 4,32 L52,32 C54.2,32 56,30.2 56,28 L56,4 C56,1.8 54.2,0 52,0 L4,0 Z"></path>
+    </g>
+
+</svg>

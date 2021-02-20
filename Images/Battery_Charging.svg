@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 48.2 (47327) - http://www.bohemiancoding.com/sketch -->
+    <title>ico_bat_charging</title>
+    <!-- <rect id="FillRect" fill="#600000" x="0" y="0" width="64" height="64"></rect> -->
+    <g id="charging_sign" transform="translate(27.000000, 24.000000)" fill="#cc0">
+        <polygon id="Shape" points="4.675 12.5583333 0 12.5583333 4.675 0 11 0"></polygon>
+        <polyline id="Shape" points="1.55833333 22 6.325 7.88333333 11 7.88333333"></polyline>
+    </g>
+</svg>
