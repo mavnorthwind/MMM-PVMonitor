@@ -3,12 +3,17 @@
 const NodeHelper = require('node_helper');
 const request = require('request');
 const Throttler = require("./Throttler.js");
+const fs = require('fs');
 
 module.exports = NodeHelper.create({
 	config: undefined,
 	timer: undefined,
 	timerEnergy: undefined,
 	throttler: undefined,
+	maxPower: {
+		value: 0.001,
+		timestamp: new Date()
+	},
 
 	start: function() {
 		var self = this;
@@ -20,6 +25,16 @@ module.exports = NodeHelper.create({
 		self.throttler.setThrottleHours(22, 8);
 
 		self.throttler.logThrottlingConditions();
+
+		try {
+			if (fs.existsSync("maxPower.json")) {
+				self.maxPower = JSON.parse(fs.readFileSync("maxPower.json"));
+			}
+		} catch (ex)
+		{
+			console.error(`Error reading maxPower.json: ${ex}`);
+			self.maxPower = { value: 0.001, timestamp: Date.now() };
+		}
 	},
 	
 	socketNotificationReceived: function(notification, payload)	{
@@ -43,6 +58,7 @@ module.exports = NodeHelper.create({
 				}, 60*60*1000); // Update production every hour
 
 				// run request 1st time
+				self.fetchSiteDetails();
 				self.throttler.forceExecute(() => self.fetchPowerFlow());
 				self.fetchProduction();
 				break;
@@ -95,6 +111,13 @@ module.exports = NodeHelper.create({
 
 					var reply = JSON.parse(body);
 					var powerflow = reply.siteCurrentPowerFlow;
+
+					if (self.maxPower.value < powerflow.PV.currentPower) {
+						self.maxPower.value = powerflow.PV.currentPower;
+						self.maxPower.timestamp = Date.now();
+						fs.writeFileSync("maxPower.json", JSON.stringify(self.maxPower));
+					}
+
 					var powerflowReply = {
 						powerflow: powerflow,
 						requestCount: self.throttler.todaysCallCount
@@ -154,6 +177,52 @@ module.exports = NodeHelper.create({
 
 					self.sendSocketNotification("PRODUCTION", productionReply);
 					// console.log(`node_helper ${self.name}: sent production ${JSON.stringify(productionReply)}`);
+				}
+			});
+		} catch(ex)
+		{
+			console.error(`node_helper ${self.name}: error ${ex}`);
+			self.sendSocketNotification("PVERROR", ex);
+		}
+	},
+
+	fetchSiteDetails: function() {
+		var self = this;
+
+		try{
+			if (!self.config)
+				console.error(`node_helper ${self.name}:Configuration has not been set!`);
+
+			var monitoringUrl = `https://monitoringapi.solaredge.com/site/${self.config.siteId}/details?format=application/json&api_key=${self.config.apiKey}`;
+
+			request({
+				url: monitoringUrl,
+				method: 'GET'
+			}, function (error, response, body) {
+				if (error) {
+					console.error(`node_helper ${self.name}: Could not get SiteDetails: ${error}`);
+					self.sendSocketNotification("PVERROR", error);
+					return;
+				}
+				if (response.statusCode >= 400 && response.statusCode < 500) {
+					console.error(`node_helper ${self.name}: request returned status ${response.statusCode}`);
+					self.sendSocketNotification("PVERROR", body);
+					return;
+				}
+				if (response.statusCode == 200) {
+					console.log(`node_helper ${self.name}: got SiteDetail data: ${JSON.stringify(response)}`);
+
+					var reply = JSON.parse(body);
+					var details = reply.details;
+
+					var siteDetailsReply = {
+						name: details.name,
+						peakPower: details.peakPower,
+						maxPower: self.maxPower
+					};
+
+					self.sendSocketNotification("SITEDETAILS", siteDetailsReply);
+					console.log(`node_helper ${self.name}: sent SiteDetails ${JSON.stringify(siteDetailsReply)}`);
 				}
 			});
 		} catch(ex)

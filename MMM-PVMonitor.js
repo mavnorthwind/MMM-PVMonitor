@@ -4,8 +4,7 @@ Module.register("MMM-PVMonitor",{
 	defaults: {
 		siteId: 123456,
 		apiKey: "INSERT-API-KEY-HERE",
-		interval: 1000*60*15,
-		pMax: 7.945
+		interval: 1000*60*15
 	},
 
 	powerFlow: undefined,
@@ -14,8 +13,14 @@ Module.register("MMM-PVMonitor",{
 	requestCount: 0,
 	lastError: undefined,
 	html: "Loading...",
-	maxPower: 0.001,
-	maxPowerTimestamp: undefined,
+	siteDetails: {
+		name: "Unknown",
+		peakPower: 1.0,
+		maxPower: {
+			value: 0.001,
+			timestamp: Date.now()
+		}
+	},
 
 	start: function() {
 		var self = this;
@@ -36,6 +41,10 @@ Module.register("MMM-PVMonitor",{
 	socketNotificationReceived: function(notification, payload) {
 		var self = this;
 		//console.log(`Module ${self.name}: socketNotification ${notification} with payload ${JSON.stringify(payload)} received`);
+
+		if (notification === "SITEDETAILS") {
+			self.siteDetails = payload;
+		}
 
 		if (notification === "POWERFLOW") {
 			self.lastError = undefined;
@@ -71,7 +80,7 @@ Module.register("MMM-PVMonitor",{
 			case "PV":
 				status = powerFlow.PV.status;
 				if (status === "Active") {
-					var amount = powerFlow.PV.currentPower / self.maxPower; // self.config.pMax;
+					var amount = powerFlow.PV.currentPower / self.siteDetails.maxPower.value;
 					if (amount < 0.1) status = "Active_0";
 					else if (amount < 0.25) status = "Active_25";
 					else if (amount < 0.5) status = "Active_50";
@@ -207,8 +216,11 @@ Module.register("MMM-PVMonitor",{
                 </td>
             </tr>
         </table>
-		<div style="font-size: small;">
+		<div class="summary">
 			Stand: ${self.timestamp.toLocaleTimeString()}; Produktion heute: ${productionToday} (gestern ${productionYesterday})
+		</div>
+		<div class="summary">
+			PeakPower ${self.siteDetails.peakPower} kW (max ${self.siteDetails.maxPower.value} kW am ${new Date(self.siteDetails.maxPower.timestamp).toLocaleString()})
 		</div>
 		`;
 
