@@ -41,6 +41,16 @@ class Throttler {
         this.#throttleHours = undefined;
     }
 
+    forceExecute(func) {
+        this.#totalCallCount++;
+        this.#callsToday++;
+        this.#lastCallTimestamp = Date.now();
+
+        func();
+
+        return true;
+    }
+
     execute(func, throttleCallback) {
         if (this.maxCalls &&
             this.#totalCallCount >= this.maxCalls) {

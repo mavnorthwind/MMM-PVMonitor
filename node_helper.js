@@ -40,10 +40,10 @@ module.exports = NodeHelper.create({
 
 				self.timerEnergy = setInterval(function() {
 					self.fetchProduction();
-				}, 1800000);
+				}, 60*60*1000); // Update production every hour
 
 				// run request 1st time
-				self.fetchPowerFlow();
+				self.throttler.forceExecute(() => self.fetchPowerFlow());
 				self.fetchProduction();
 				break;
 			case "USER_PRESENCE":
@@ -52,6 +52,17 @@ module.exports = NodeHelper.create({
 					self.throttler.execute(() => self.fetchPowerFlow(), (r) => console.log("PowerFlow update throttled:"+r));
 				break;
 		}
+	},
+
+	findProductionForDay: function(day, values) {
+		var prod = 0;
+
+		values.forEach(v => {
+			if (v.date.indexOf(day) >= 0)
+				prod = v.value;
+		});
+
+		return prod;
 	},
 
 	fetchPowerFlow: function() {
@@ -98,17 +109,6 @@ module.exports = NodeHelper.create({
 			console.error(`node_helper ${self.name}: error ${ex}`);
 			self.sendSocketNotification("PVERROR", ex);
 		}
-	},
-
-	findProductionForDay: function(day, values) {
-		var prod = 0;
-
-		values.forEach(v => {
-			if (v.date.indexOf(day) >= 0)
-				prod = v.value;
-		});
-
-		return prod;
 	},
 
 	fetchProduction: function() {
