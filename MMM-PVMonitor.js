@@ -14,7 +14,7 @@ Module.register("MMM-PVMonitor",{
 	requestCount: 0,
 	lastError: undefined,
 	html: "Loading...",
-	maxPower: 0,
+	maxPower: 0.001,
 	maxPowerTimestamp: undefined,
 
 	start: function() {
@@ -71,7 +71,7 @@ Module.register("MMM-PVMonitor",{
 			case "PV":
 				status = powerFlow.PV.status;
 				if (status === "Active") {
-					var amount = powerFlow.PV.currentPower / self.config.pMax;
+					var amount = powerFlow.PV.currentPower / self.maxPower; // self.config.pMax;
 					if (amount < 0.1) status = "Active_0";
 					else if (amount < 0.25) status = "Active_25";
 					else if (amount < 0.5) status = "Active_50";
