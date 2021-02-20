@@ -33,7 +33,7 @@ Module.register("MMM-PVMonitor",{
 
 	socketNotificationReceived: function(notification, payload) {
 		var self = this;
-		console.log(`Module ${self.name}: socketNotification ${notification} with payload ${JSON.stringify(payload)} received`);
+		//console.log(`Module ${self.name}: socketNotification ${notification} with payload ${JSON.stringify(payload)} received`);
 
 		if (notification === "POWERFLOW") {
 			self.lastError = undefined;
