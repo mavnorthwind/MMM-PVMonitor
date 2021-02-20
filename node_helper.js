@@ -80,7 +80,7 @@ module.exports = NodeHelper.create({
 					return;
 				}
 				if (response.statusCode == 200) {
-					// console.log(`node_helper ${self.name}: got powerFlow data: ${JSON.stringify(response)}`);
+					console.log(`node_helper ${self.name}: got powerFlow data: ${JSON.stringify(response.body)}`);
 
 					var reply = JSON.parse(body);
 					var powerflow = reply.siteCurrentPowerFlow;
@@ -139,7 +139,7 @@ module.exports = NodeHelper.create({
 					return;
 				}
 				if (response.statusCode == 200) {
-					console.log(`node_helper ${self.name}: got energy data: ${JSON.stringify(response)}`);
+					console.log(`node_helper ${self.name}: got energy data: ${JSON.stringify(response.body)}`);
 
 					var reply = JSON.parse(body);
 					var energy = reply.energy;
