@@ -51,10 +51,10 @@ Module.register("MMM-PVMonitor",{
 			self.powerFlow = payload.powerflow;
 			self.requestCount = payload.requestCount;
 			self.timestamp = new Date();
-			if (self.powerFlow.PV.currentPower >= self.maxPower.value) {
-				self.maxPower.value = self.powerFlow.PV.currentPower;
-				self.maxPower.timestamp = Date.now();
-				console.log(`Module ${self.name}: New max power ${self.maxPower.value} ${self.powerFlow.unit} at ${new Date(self.maxPower.timestamp).toLocaleString()}`);
+			if (self.powerFlow.PV.currentPower >= self.siteDetails.maxPower.value) {
+				self.siteDetails.maxPower.value = self.powerFlow.PV.currentPower;
+				self.siteDetails.maxPower.timestamp = Date.now();
+				console.log(`Module ${self.name}: New max power ${self.siteDetails.maxPower.value} ${self.powerFlow.unit} at ${new Date(self.siteDetails.maxPower.timestamp).toLocaleString()}`);
 			}
 			self.updateDom(0);
 		}
