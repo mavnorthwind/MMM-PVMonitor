@@ -105,7 +105,7 @@ Module.register("MMM-PVMonitor",{
 		var self = this;
 		var file;
 		if (powerFlow.STORAGE) {
-			var level = powerFlow.STORAGE.chargeLevel - (powerFlow.STORAGE.chargeLevel % 10);
+			var level = Math.round(powerFlow.STORAGE.chargeLevel/10) * 10;
 			if (level == 0)
 				level = "00";
 			file = `Images/EL_${level}.svg`;
