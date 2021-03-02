@@ -21,6 +21,11 @@ Module.register("MMM-PVMonitor",{
 			timestamp: Date.now()
 		}
 	},
+	productionSpan: {
+		day: new Date(),
+		firstProduction: "unknown",
+		lastProduction: "unknown"
+	},
 
 	start: function() {
 		var self = this;
@@ -50,6 +55,7 @@ Module.register("MMM-PVMonitor",{
 			self.lastError = undefined;
 			self.powerFlow = payload.powerflow;
 			self.requestCount = payload.requestCount;
+			self.productionSpan = payload.productionSpan;
 			self.timestamp = new Date();
 			if (self.powerFlow.PV.currentPower >= self.siteDetails.maxPower.value) {
 				self.siteDetails.maxPower.value = self.powerFlow.PV.currentPower;
@@ -221,6 +227,9 @@ Module.register("MMM-PVMonitor",{
 		</div>
 		<div class="summary">
 			PeakPower ${self.siteDetails.peakPower} kW (max ${self.siteDetails.maxPower.value} kW am ${new Date(self.siteDetails.maxPower.timestamp).toLocaleString()})
+		</div>
+		<div class="summary">
+			Produktion heute von ${self.productionSpan.firstProduction} bis ${self.productionSpan.lastProduction}
 		</div>
 		`;
 

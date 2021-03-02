@@ -14,6 +14,11 @@ module.exports = NodeHelper.create({
 		value: 0.001,
 		timestamp: new Date()
 	},
+	productionSpan: {
+		day: -1,
+		firstProduction: '-',
+		lastProduction: '-'
+	},
 
 	start: function() {
 		var self = this;
@@ -118,8 +123,25 @@ module.exports = NodeHelper.create({
 						fs.writeFileSync("maxPower.json", JSON.stringify(self.maxPower));
 					}
 
+					var d = new Date();
+					if (self.productionSpan.day != d.getDay()) {
+						self.productionSpan.day = d.getDay();
+						self.productionSpan.firstProduction = "-";
+						self.productionSpan.lastProduction = "-";
+					}
+					if (self.productionSpan.firstProduction == "-" &&
+					    powerflow.PV.currentPower > 0) {
+						self.productionSpan.firstProduction = `${d.toLocaleTimeString()}`;
+					}
+					if (self.productionSpan.firstProduction != "-" &&
+					    self.productionSpan.lastProduction == "-" &&
+						powerflow.PV.currentPower <= 0) {
+						self.productionSpan.lastProduction = `${d.toLocaleTimeString()}`;
+					}
+
 					var powerflowReply = {
 						powerflow: powerflow,
+						productionSpan: self.productionSpan,
 						requestCount: self.throttler.todaysCallCount
 					};
 
