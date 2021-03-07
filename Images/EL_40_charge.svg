@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="60px" height="32px" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-    <title>ico_bat_40</title>
+    <defs>
+        <linearGradient x1="0%" y1="0%" x2="100%" y2="0%" spreadMethod="repeat" id="charging">
+            <stop offset="0%" stop-color="#440"/>
+            <stop offset="100%" stop-color="#880"/>
+            <animate attributeName="x1" dur="2000ms" from="0%" to="50%" repeatCount="indefinite"/>
+            <animate attributeName="x2" dur="2000ms" from="50%" to="100%" repeatCount="indefinite"/>
+        </linearGradient>
+        <style type="text/css"><![CDATA[
+        #FillRect { fill: url(#charging); }
+        ]]>]</style>
+    </defs>
     <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <rect id="FillRect" fill="#880" x="2" y="2" width="20" height="28"></rect>
         <polygon id="Contact" fill="#666666" points="55 24 55 8 60 12 60 20"></polygon>
