@@ -119,12 +119,12 @@ Module.register("MMM-PVMonitor",{
 			file = "Images/Empty";
 		}
 
-		if (self.hasFlow(powerFlow, "PV", "STORAGE") ||
-			self.hasFlow(powerFlow, "GRID", "STORAGE"))
-			file += "_charge";
-		else if (self.hasFlow(powerFlow, "STORAGE", "LOAD") ||
-				 self.hasFlow(powerFlow, "STORAGE", "GRID"))
-			file += "_discharge";
+		// if (self.hasFlow(powerFlow, "PV", "STORAGE") ||
+		// 	self.hasFlow(powerFlow, "GRID", "STORAGE"))
+		// 	file += "_charge";
+		// else if (self.hasFlow(powerFlow, "STORAGE", "LOAD") ||
+		// 		 self.hasFlow(powerFlow, "STORAGE", "GRID"))
+		// 	file += "_discharge";
 		
 		file += ".svg";
 
@@ -183,10 +183,10 @@ Module.register("MMM-PVMonitor",{
 		var loadImage = self.getComponentImage("Load", powerFlow);
 		var gridImage = self.getComponentImage("Grid", powerFlow);
 		var storageImage = self.getStorageImage(powerFlow);
-		// var chargingImage = self.file("Images/Battery_Charging.svg");
-		// var chargingClass = "discharging";
-		// if (hasStorage && powerFlow.STORAGE.status === "Charging")
-		// 	chargingClass = "chargingImage";
+		var chargingImage = self.file("Images/Battery_Charging.svg");
+		var chargingClass = "discharging";
+		if (hasStorage && powerFlow.STORAGE.status === "Charging")
+			chargingClass = "chargingImage";
 		var arrowDownImage = self.file("Images/Arrow_Down_G.svg");
 		var arrowLeftImage = self.file("Images/Arrow_Left_O.svg");
 		var arrowRightImage = self.file("Images/Arrow_Right_G.svg");
@@ -224,10 +224,11 @@ Module.register("MMM-PVMonitor",{
             </tr>
             <tr>
                 <td class="MMPV_TD ${storageClass}">
-                    <span class="${flowSTORAGE2LOAD} overlayRight"><img src="${arrowRightUpImage}" /></span>
-                    <img class="storageImage" src="${storageImage}" />
-                    <div class="percentage">${storageCharge} %</div>
-                    <div class="storagePower">${storagePower}</div>
+					<span class="${flowSTORAGE2LOAD} overlayRight"><img src="${arrowRightUpImage}" /></span>
+					<img class="storageImage" src="${storageImage}" />
+					<img class="${chargingClass}" src="${chargingImage}" />
+					<div class="percentage">${storageCharge} %</div>
+					<div class="storagePower">${storagePower}</div>
                 </td>
             </tr>
         </table>
