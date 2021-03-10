@@ -9,6 +9,7 @@ Module.register("MMM-PVMonitor",{
 
 	powerFlow: undefined,
 	energy: undefined,
+	autarchy: undefined,
 	timestamp: undefined,
 	requestCount: 0,
 	lastError: undefined,
@@ -68,6 +69,12 @@ Module.register("MMM-PVMonitor",{
 		if (notification === "PRODUCTION") {
 			self.lastError = undefined;
 			self.energy = payload;
+			self.updateDom(0);
+		}
+
+		if (notification === "AUTARCHY") {
+			self.lastError = undefined;
+			self.autarchy = payload;
 			self.updateDom(0);
 		}
 
@@ -202,6 +209,8 @@ Module.register("MMM-PVMonitor",{
 		var productionToday = self.energy ? `${self.beautifyEnergy(self.energy.productionToday, self.energy.unit)}` : "?";
 		var productionYesterday = self.energy ? `${self.beautifyEnergy(self.energy.productionYesterday, self.energy.unit)}` : "?";
 
+		var autarchy = self.autarchy ? Math.round(self.autarchy.percentage * 100) : "?";
+
 		var template = 
 		`<table>
             <tr>
@@ -240,6 +249,9 @@ Module.register("MMM-PVMonitor",{
 		</div>
 		<div class="summary">
 			Produktion heute von ${self.productionSpan.firstProduction} bis ${self.productionSpan.lastProduction}
+		</div>
+		<div class="summary">
+			Autarkie der letzten 30 Tage: ${autarchy} %
 		</div>
 		`;
 

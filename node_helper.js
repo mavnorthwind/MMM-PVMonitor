@@ -60,12 +60,14 @@ module.exports = NodeHelper.create({
 
 				self.timerEnergy = setInterval(function() {
 					self.fetchProduction();
+					self.fetchEnergyDetails();
 				}, 60*60*1000); // Update production every hour
 
 				// run request 1st time
 				self.fetchSiteDetails();
 				self.throttler.forceExecute(() => self.fetchPowerFlow());
 				self.fetchProduction();
+				self.fetchEnergyDetails();
 				break;
 			case "USER_PRESENCE":
 				console.log(`node_helper ${self.name}: USER_PRESENCE ${payload}`);
@@ -84,6 +86,20 @@ module.exports = NodeHelper.create({
 		});
 
 		return prod;
+	},
+
+	sumValuesFor: function(meter, meters) {
+		var res = 0;
+		for (var m=0; m<meters.length; m++){
+			if (meters[m].type.toLocaleLowerCase() == meter.toLocaleLowerCase()) {
+				for (var i=0; i<meters[m].values.length; i++){
+					res += meters[m].values[i].value;
+				}
+				break;
+			}
+		}
+
+		return res;
 	},
 
 	fetchPowerFlow: function() {
@@ -135,7 +151,8 @@ module.exports = NodeHelper.create({
 					}
 					if (self.productionSpan.firstProduction != "-" &&
 					    self.productionSpan.lastProduction == "-" &&
-						powerflow.PV.currentPower <= 0) {
+						powerflow.PV.currentPower <= 0 &&
+						d.getHours() > 10) { // avoid initial jitter
 						self.productionSpan.lastProduction = `${d.toLocaleTimeString()}`;
 					}
 
@@ -252,6 +269,57 @@ module.exports = NodeHelper.create({
 			console.error(`node_helper ${self.name}: error ${ex}`);
 			self.sendSocketNotification("PVERROR", ex);
 		}
-	}
+	},
 
+	fetchEnergyDetails: function() {
+		var self = this;
+
+		try{
+			if (!self.config)
+				console.error(`node_helper ${self.name}:Configuration has not been set!`);
+
+			var today = new Date();
+			var lastMonth = new Date(today - 30*24*60*60000);
+			var startTime = lastMonth.toJSON().substr(0,10)+" 00:00:00";
+			var endTime = new Date(today-24*60*60000).toJSON().substr(0,10)+" 23:59:59";
+			var monitoringUrl = `https://monitoringapi.solaredge.com/site/${self.config.siteId}/energyDetails?format=application/json&api_key=${self.config.apiKey}&timeUnit=DAY&startTime=${startTime}&endTime=${endTime}`;
+
+			request({
+				url: monitoringUrl,
+				method: 'GET'
+			}, function (error, response, body) {
+				if (error) {
+					console.error(`node_helper ${self.name}: Could not get Production: ${error}`);
+					self.sendSocketNotification("PVERROR", error);
+					return;
+				}
+				if (response.statusCode >= 400 && response.statusCode < 500) {
+					console.error(`node_helper ${self.name}: request returned status ${response.statusCode}`);
+					self.sendSocketNotification("PVERROR", body);
+					return;
+				}
+				if (response.statusCode == 200) {
+					console.log(`node_helper ${self.name}: got energy details data: ${JSON.stringify(response)}`);
+
+					var reply = JSON.parse(body);
+					var energyDetails = reply.energyDetails;
+					var selfConsumption = self.sumValuesFor("SelfConsumption", energyDetails.meters);
+					var totalConsumption = self.sumValuesFor("Consumption", energyDetails.meters);
+
+					var autarchyReply = {
+						from: startTime,
+						to: endTime,
+						percentage: selfConsumption/totalConsumption
+					};
+
+					self.sendSocketNotification("AUTARCHY", autarchyReply);
+					console.log(`node_helper ${self.name}: sent autarchy ${JSON.stringify(autarchyReply)}`);
+				}
+			});
+		} catch(ex)
+		{
+			console.error(`node_helper ${self.name}: error ${ex}`);
+			self.sendSocketNotification("PVERROR", ex);
+		}
+	},
 });
