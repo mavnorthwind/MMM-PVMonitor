@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="60px" height="32px" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <defs>
-        <linearGradient x1="0%" y1="0%" x2="100%" y2="0%" spreadMethod="repeat" id="charging">
-            <stop offset="0%" stop-color="#080"/>
-            <stop offset="100%" stop-color="#0f0"/>
-            <animate attributeName="x1" dur="2000ms" from="0%" to="50%" repeatCount="indefinite"/>
-            <animate attributeName="x2" dur="2000ms" from="50%" to="100%" repeatCount="indefinite"/>
+        <linearGradient x1="0%" y1="0%" x2="0%" y2="100%" id="charging">
+            <stop offset="0%" stop-color="#0d0"/>
+            <stop offset="5%" stop-color="#0d0"/>
+            <stop offset="15%" stop-color="#0f0"/>
+            <stop offset="20%" stop-color="#0d0"/>
+            <stop offset="100%" stop-color="#0d0"/>
+            <animate attributeName="y1" dur="5000ms" from="-100%" to="100%" repeatCount="indefinite"/>
+            <animate attributeName="y2" dur="5000ms" from="0%" to="200%" repeatCount="indefinite"/>
         </linearGradient>
         <style type="text/css"><![CDATA[
         #FillRect { fill: url(#charging); }
