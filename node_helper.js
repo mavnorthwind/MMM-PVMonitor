@@ -334,74 +334,41 @@ module.exports = NodeHelper.create({
 	fetchDiagramData: function(){
 		var self = this;
 
-		var startTime = new Date(Date.now() - 24*60*60000); // now - 24h
-		var endTime = new Date();
+		var startTime = self.formatDateTimeForAPI(new Date(Date.now() - 24*60*60000)); // now - 24h
+		var endTime = self.formatDateTimeForAPI(new Date());
 		var inverterDataUrl = `https://monitoringapi.solaredge.com/equipment/${self.config.siteId}/${self.config.inverterId}/data?format=application/json&api_key=${self.config.apiKey}&startTime=${startTime}&endTime=${endTime}`;
-		var storageDataUrl = `https://monitoringapi.solaredge.com/equipment/${self.config.siteId}/storageData?format=application/json&api_key=${self.config.apiKey}&startTime=${startTime}&endTime=${endTime}`;
+		var storageDataUrl = `https://monitoringapi.solaredge.com/site/${self.config.siteId}/storageData?format=application/json&api_key=${self.config.apiKey}&startTime=${startTime}&endTime=${endTime}`;
+		// console.log(`InverterUrl: ${inverterDataUrl}`);
+		// console.log(`StorageUrl: ${storageDataUrl}`);
 
-		axios.all([
+		Promise.all([
 			axios.get(inverterDataUrl),
 			axios.get(storageDataUrl)
-		]).then(axios.spread((resInverter, resStorage) => {
+		])
+		.then(res => {
 
-			console.log(`axios res1: ${JSON.stringify(resInverter)}`);
-			console.log(`axios res2: ${JSON.stringify(resStorage)}`);
+			var inverterData = res[0].data;
+			var storageData = res[1].data;
 
-			var diagramReply = self.buildDiagramData();
+			console.log("Inverter reply");
+			console.log(JSON.stringify(inverterData));
+			console.log("Storage reply");
+			console.log(JSON.stringify(storageData));
+
+			var diagramReply = self.buildDiagramData(inverterData, storageData);
 
 			console.log(`node_helper ${self.name}: sent diagram data ${JSON.stringify(diagramReply)}`);
 			self.sendSocketNotification("DIAGRAMDATA", diagramReply);
 
-		})).catch(err => {
+		})
+		.catch(err => {
 			console.error(`node_helper ${self.name}: request returned error  ${err}`);
 			self.sendSocketNotification("PVERROR", err);
 		});
 	},
 
-	fetchDiagramDataOld: function(){
-		var self = this;
 
-		try{
-			if (!self.config)
-				console.error(`node_helper ${self.name}:Configuration has not been set!`);
-
-			var startTime = new Date(Date.now() - 24*60*60000);
-			var endTime = new Date();
-			var monitoringUrl = `https://www.google.de`;//`https://monitoringapi.solaredge.com/site/${self.config.siteId}/energyDetails?format=application/json&api_key=${self.config.apiKey}&timeUnit=DAY&startTime=${startTime}&endTime=${endTime}`;
-
-			request({
-				url: monitoringUrl,
-				method: 'GET'
-			}, function (error, response, body) {
-				if (error) {
-					console.error(`node_helper ${self.name}: Could not get battery data: ${error}`);
-					self.sendSocketNotification("PVERROR", error);
-					return;
-				}
-				if (response.statusCode >= 400 && response.statusCode < 500) {
-					console.error(`node_helper ${self.name}: request returned status ${response.statusCode}`);
-					self.sendSocketNotification("PVERROR", body);
-					return;
-				}
-				if (response.statusCode == 200) {
-					console.log(`node_helper ${self.name}: got battery data: ${JSON.stringify(response)}`);
-
-					//var reply = JSON.parse(body);
-
-					var diagramReply = self.buildDiagramData();
-
-					self.sendSocketNotification("DIAGRAMDATA", diagramReply);
-					console.log(`node_helper ${self.name}: sent diagram data ${JSON.stringify(diagramReply)}`);
-				}
-			});
-		} catch(ex)
-		{
-			console.error(`node_helper ${self.name}: error ${ex}`);
-			self.sendSocketNotification("PVERROR", ex);
-		}
-	},
-
-	buildDiagramData: function() {
+	buildDiagramData: function(inverterData, storageData) {
 		var storageTimes = [];
 		var storageValues = [];
 		var tempTimes = [];
@@ -411,7 +378,7 @@ module.exports = NodeHelper.create({
 		var storageStart = 100;
 
 		var resolution = 15;
-		for (var t=0; t < 24 * 60; t+=resolution){
+		for (var t=0; t <= 24 * 60; t+=resolution){
 			var h = Math.floor(t/60);
 			var m = t-h*60;
 			h = (h<10) ? `0${h}` : `${h}`;
@@ -439,4 +406,11 @@ module.exports = NodeHelper.create({
 
 		return diagramReply;
 	},
+
+	formatDateTimeForAPI: function(date) {
+		var jsonDate = date.toJSON();
+		jsonDate = jsonDate.substr(0, 19); // Cut after seconds
+		jsonDate = jsonDate.replace("T", " ");
+		return jsonDate;
+	}
 });

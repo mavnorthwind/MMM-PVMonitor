@@ -292,7 +292,7 @@ Module.register("MMM-PVMonitor",{
 			self.html = self.fillTableTemplate(self.powerFlow);
 			wrapper.innerHTML = self.html;
 			// We must defer drawing the diagram until the DOM has been updated to contain the target div!
-			setTimeout(() => self.drawDiagram(), 1000);
+			setTimeout(() => self.drawDiagram(), 100);
 		} else {
 			wrapper.innerHTML = "Loading... ";
 		}
@@ -354,8 +354,14 @@ Module.register("MMM-PVMonitor",{
 				font: {
 				  color: "#AAA"
 				},
+				xaxis: {
+					tickmode: "array", // If "array", the placement of the ticks is set via `tickvals` and the tick text is `ticktext`.
+					tickvals: [0, 12, 24, 36, 48, 60, 72, 84, 96],
+				},
 				yaxis: {
-				  range: [0,100]
+				  range: [0,100],
+				  tickmode: "array", // If "array", the placement of the ticks is set via `tickvals` and the tick text is `ticktext`.
+				  tickvals: [0, 10, 25, 50, 75, 100],
 				//  type: 'log'
 				},
 				shapes: [
