@@ -338,8 +338,6 @@ module.exports = NodeHelper.create({
 		var endTime = self.formatDateTimeForAPI(new Date());
 		var inverterDataUrl = `https://monitoringapi.solaredge.com/equipment/${self.config.siteId}/${self.config.inverterId}/data?format=application/json&api_key=${self.config.apiKey}&startTime=${startTime}&endTime=${endTime}`;
 		var storageDataUrl = `https://monitoringapi.solaredge.com/site/${self.config.siteId}/storageData?format=application/json&api_key=${self.config.apiKey}&startTime=${startTime}&endTime=${endTime}`;
-		// console.log(`InverterUrl: ${inverterDataUrl}`);
-		// console.log(`StorageUrl: ${storageDataUrl}`);
 
 		Promise.all([
 			axios.get(inverterDataUrl),
@@ -349,11 +347,6 @@ module.exports = NodeHelper.create({
 
 			var inverterData = res[0].data;
 			var storageData = res[1].data;
-
-			console.log("Inverter reply");
-			console.log(JSON.stringify(inverterData));
-			console.log("Storage reply");
-			console.log(JSON.stringify(storageData));
 
 			var diagramReply = self.buildDiagramData(inverterData, storageData);
 
