@@ -259,13 +259,13 @@ Module.register("MMM-PVMonitor",{
         </table>
 		<div id="diagram" class="diagram">
 		</div>
-		<div class="summary">
+		<div class="summary" style="display:none">
 			Stand: ${self.timestamp.toLocaleTimeString()}; Produktion heute: ${productionToday} (gestern ${productionYesterday})
 		</div>
-		<div class="summary">
+		<div class="summary" style="display:none">
 			PeakPower ${self.siteDetails.peakPower} kW (max ${self.siteDetails.maxPower.value} kW am ${new Date(self.siteDetails.maxPower.timestamp).toLocaleString()})
 		</div>
-		<div class="summary">
+		<div class="summary" style="display:none">
 			Produktion heute von ${self.productionSpan.firstProduction} bis ${self.productionSpan.lastProduction}
 		</div>
 		<div class="summary">
@@ -356,13 +356,12 @@ Module.register("MMM-PVMonitor",{
 				},
 				xaxis: {
 					tickmode: "array", // If "array", the placement of the ticks is set via `tickvals` and the tick text is `ticktext`.
-					tickvals: [0, 12, 24, 36, 48, 60, 72, 84, 96],
+					tickvals: [0, 12*3, 24*3, 36*3, 48*3, 60*3, 72*3, 84*3, 96*3-1],
 				},
 				yaxis: {
 				  range: [0,100],
 				  tickmode: "array", // If "array", the placement of the ticks is set via `tickvals` and the tick text is `ticktext`.
 				  tickvals: [0, 10, 25, 50, 75, 100],
-				//  type: 'log'
 				},
 				shapes: [
 					{ // Threshold for 10% battery
