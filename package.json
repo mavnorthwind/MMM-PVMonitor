@@ -1,0 +1,14 @@
+{
+  "name": "mmm-pvmonitor",
+  "version": "1.0.0",
+  "description": "A MagicMirror module for displaying SolarEdge PV monitoring data",
+  "main": "MMM-PVMonitor.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "mav",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.21.1"
+  }
+}

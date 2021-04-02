@@ -2,6 +2,8 @@
 
 const NodeHelper = require('node_helper');
 const request = require('request');
+const axios = require('axios');
+
 const Throttler = require("./Throttler.js");
 const fs = require('fs');
 
@@ -19,6 +21,7 @@ module.exports = NodeHelper.create({
 		firstProduction: '-',
 		lastProduction: '-'
 	},
+	timerDiagram: undefined,
 
 	start: function() {
 		var self = this;
@@ -63,11 +66,16 @@ module.exports = NodeHelper.create({
 					self.fetchEnergyDetails();
 				}, 60*60*1000); // Update production every hour
 
+				self.timerDiagram = setInterval(function() {
+					self.fetchDiagramData();
+				}, 15*60*1000); // Update diagram every 15 minutes
+
 				// run request 1st time
 				self.fetchSiteDetails();
 				self.throttler.forceExecute(() => self.fetchPowerFlow());
 				self.fetchProduction();
 				self.fetchEnergyDetails();
+				self.fetchDiagramData();
 				break;
 			case "USER_PRESENCE":
 				console.log(`node_helper ${self.name}: USER_PRESENCE ${payload}`);
@@ -321,5 +329,114 @@ module.exports = NodeHelper.create({
 			console.error(`node_helper ${self.name}: error ${ex}`);
 			self.sendSocketNotification("PVERROR", ex);
 		}
+	},
+
+	fetchDiagramData: function(){
+		var self = this;
+
+		var startTime = new Date(Date.now() - 24*60*60000); // now - 24h
+		var endTime = new Date();
+		var inverterDataUrl = `https://monitoringapi.solaredge.com/equipment/${self.config.siteId}/${self.config.inverterId}/data?format=application/json&api_key=${self.config.apiKey}&startTime=${startTime}&endTime=${endTime}`;
+		var storageDataUrl = `https://monitoringapi.solaredge.com/equipment/${self.config.siteId}/storageData?format=application/json&api_key=${self.config.apiKey}&startTime=${startTime}&endTime=${endTime}`;
+
+		axios.all([
+			axios.get(inverterDataUrl),
+			axios.get(storageDataUrl)
+		]).then(axios.spread((resInverter, resStorage) => {
+
+			console.log(`axios res1: ${JSON.stringify(resInverter)}`);
+			console.log(`axios res2: ${JSON.stringify(resStorage)}`);
+
+			var diagramReply = self.buildDiagramData();
+
+			console.log(`node_helper ${self.name}: sent diagram data ${JSON.stringify(diagramReply)}`);
+			self.sendSocketNotification("DIAGRAMDATA", diagramReply);
+
+		})).catch(err => {
+			console.error(`node_helper ${self.name}: request returned error  ${err}`);
+			self.sendSocketNotification("PVERROR", err);
+		});
+	},
+
+	fetchDiagramDataOld: function(){
+		var self = this;
+
+		try{
+			if (!self.config)
+				console.error(`node_helper ${self.name}:Configuration has not been set!`);
+
+			var startTime = new Date(Date.now() - 24*60*60000);
+			var endTime = new Date();
+			var monitoringUrl = `https://www.google.de`;//`https://monitoringapi.solaredge.com/site/${self.config.siteId}/energyDetails?format=application/json&api_key=${self.config.apiKey}&timeUnit=DAY&startTime=${startTime}&endTime=${endTime}`;
+
+			request({
+				url: monitoringUrl,
+				method: 'GET'
+			}, function (error, response, body) {
+				if (error) {
+					console.error(`node_helper ${self.name}: Could not get battery data: ${error}`);
+					self.sendSocketNotification("PVERROR", error);
+					return;
+				}
+				if (response.statusCode >= 400 && response.statusCode < 500) {
+					console.error(`node_helper ${self.name}: request returned status ${response.statusCode}`);
+					self.sendSocketNotification("PVERROR", body);
+					return;
+				}
+				if (response.statusCode == 200) {
+					console.log(`node_helper ${self.name}: got battery data: ${JSON.stringify(response)}`);
+
+					//var reply = JSON.parse(body);
+
+					var diagramReply = self.buildDiagramData();
+
+					self.sendSocketNotification("DIAGRAMDATA", diagramReply);
+					console.log(`node_helper ${self.name}: sent diagram data ${JSON.stringify(diagramReply)}`);
+				}
+			});
+		} catch(ex)
+		{
+			console.error(`node_helper ${self.name}: error ${ex}`);
+			self.sendSocketNotification("PVERROR", ex);
+		}
+	},
+
+	buildDiagramData: function() {
+		var storageTimes = [];
+		var storageValues = [];
+		var tempTimes = [];
+		var tempValues = [];
+
+		var tempStart = 40;
+		var storageStart = 100;
+
+		var resolution = 15;
+		for (var t=0; t < 24 * 60; t+=resolution){
+			var h = Math.floor(t/60);
+			var m = t-h*60;
+			h = (h<10) ? `0${h}` : `${h}`;
+			m = (m<10) ? `0${m}` : `${m}`;
+			storageTimes.push(`${h}:${m}`);
+			tempTimes.push(`${h}:${m}`);
+
+			var dTemp = Math.random();
+			tempStart += (dTemp > 0.5) ? 1 : -1;
+			var dStorage = Math.random();
+			storageStart += (dStorage > 0.5) ? 5 : -5;
+
+			storageStart = Math.min(100, Math.max(0, storageStart));
+			storageValues.push(storageStart);
+			tempStart = Math.min(60, Math.max(15, tempStart));
+			tempValues.push(tempStart);
+		}
+
+		var diagramReply = {
+			storageTimes: storageTimes,
+			storageValues: storageValues,
+			tempTimes: tempTimes,
+			tempValues: tempValues
+		};
+
+		return diagramReply;
 	},
 });
