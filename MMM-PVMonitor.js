@@ -2,7 +2,8 @@
 Module.register("MMM-PVMonitor",{
 	// Default module config.
 	defaults: {
-		siteId: 123456,
+		siteId: "123456",
+		inverterId: "12345678-9A",
 		apiKey: "INSERT-API-KEY-HERE",
 		interval: 1000*60*15
 	},
@@ -27,6 +28,12 @@ Module.register("MMM-PVMonitor",{
 		firstProduction: "unknown",
 		lastProduction: "unknown"
 	},
+
+	// diagram data
+	storageTimes: [],
+	storageValues: [],
+	tempTimes: [],
+	tempValues: [],
 
 	start: function() {
 		var self = this;
@@ -75,6 +82,15 @@ Module.register("MMM-PVMonitor",{
 		if (notification === "AUTARCHY") {
 			self.lastError = undefined;
 			self.autarchy = payload;
+			self.updateDom(0);
+		}
+
+		if (notification === "DIAGRAMDATA") {
+			self.lastError = undefined;
+			self.tempTimes = payload.tempTimes;
+			self.tempValues = payload.tempValues;
+			self.storageTimes = payload.storageTimes;
+			self.storageValues = payload.storageValues;
 			self.updateDom(0);
 		}
 
@@ -241,6 +257,8 @@ Module.register("MMM-PVMonitor",{
                 </td>
             </tr>
         </table>
+		<div id="diagram" class="diagram">
+		</div>
 		<div class="summary">
 			Stand: ${self.timestamp.toLocaleTimeString()}; Produktion heute: ${productionToday} (gestern ${productionYesterday})
 		</div>
@@ -273,9 +291,92 @@ Module.register("MMM-PVMonitor",{
 		else if (self.powerFlow) {
 			self.html = self.fillTableTemplate(self.powerFlow);
 			wrapper.innerHTML = self.html;
+			// We must defer drawing the diagram until the DOM has been updated to contain the target div!
+			setTimeout(() => self.drawDiagram(), 1000);
 		} else {
 			wrapper.innerHTML = "Loading... ";
 		}
 		return wrapper;
+	},
+
+	getScripts: function() {
+		return [
+			"https://cdn.plot.ly/plotly-latest.min.js"
+		];
+	},
+
+	drawDiagram: function() {
+		var self = this;
+
+		var dia = document.getElementById("diagram");
+		if (dia) {
+			var storage = {
+				x: self.storageTimes,
+				y: self.storageValues,
+				type: 'scatter',
+				name: "SoC",
+				fill: 'tozeroy',
+				line: {
+				  shape: "spline"
+				}
+			  };
+			  var temp = {
+				x: self.tempTimes,
+				y: self.tempValues,
+				type: 'scatter',
+				name: "Temp",
+				mode: 'lines',
+				line: {
+				  color: '#F80',
+				  width: 3,
+				  shape: "spline" 
+				}
+			  };
+			  
+			  var data = [storage, temp];
+			  
+			  var layout = {
+				plot_bgcolor:"#111",
+				paper_bgcolor:"#000",
+				  showlegend: true,
+				legend: {
+				  x: 0,
+				  xanchor: 'left',
+				  y: 1,
+				  bgcolor: '#0008'
+				},
+				margin: {
+				  l: 20,
+				  r: 15,
+				  t: 10,
+				  b: 20
+				},
+				font: {
+				  color: "#AAA"
+				},
+				yaxis: {
+				  range: [0,100]
+				//  type: 'log'
+				},
+				shapes: [
+					{ // Threshold for 10% battery
+						type: 'line',
+						xref: 'paper',
+						x0: 0,
+						y0: 10.0,
+						x1: 1,
+						y1: 10.0,
+						line:{
+							color: '#F008',
+							width: 3,
+							dash:'dash'
+						}
+					}
+					]
+			  };
+			  
+			  
+			  Plotly.newPlot('diagram', data, layout, {staticPlot: true});
+		}
 	}
 });
