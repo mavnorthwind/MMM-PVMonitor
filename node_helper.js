@@ -236,99 +236,84 @@ module.exports = NodeHelper.create({
 	fetchSiteDetails: function() {
 		var self = this;
 
-		try{
-			if (!self.config)
-				console.error(`node_helper ${self.name}:Configuration has not been set!`);
-
-			var monitoringUrl = `https://monitoringapi.solaredge.com/site/${self.config.siteId}/details?format=application/json&api_key=${self.config.apiKey}`;
-
-			request({
-				url: monitoringUrl,
-				method: 'GET'
-			}, function (error, response, body) {
-				if (error) {
-					console.error(`node_helper ${self.name}: Could not get SiteDetails: ${error}`);
-					self.sendSocketNotification("PVERROR", error);
-					return;
-				}
-				if (response.statusCode >= 400 && response.statusCode < 500) {
-					console.error(`node_helper ${self.name}: request returned status ${response.statusCode}`);
-					self.sendSocketNotification("PVERROR", body);
-					return;
-				}
-				if (response.statusCode == 200) {
-					console.log(`node_helper ${self.name}: got SiteDetail data: ${JSON.stringify(response)}`);
-
-					var reply = JSON.parse(body);
-					var details = reply.details;
-
-					var siteDetailsReply = {
-						name: details.name,
-						peakPower: details.peakPower,
-						maxPower: self.maxPower
-					};
-
-					self.sendSocketNotification("SITEDETAILS", siteDetailsReply);
-					console.log(`node_helper ${self.name}: sent SiteDetails ${JSON.stringify(siteDetailsReply)}`);
-				}
-			});
-		} catch(ex)
-		{
-			console.error(`node_helper ${self.name}: error ${ex}`);
-			self.sendSocketNotification("PVERROR", ex);
+		if (!self.config){
+			console.error(`node_helper ${self.name}:Configuration has not been set!`);
+			return;
 		}
+
+		var siteDetailsUrl = `https://monitoringapi.solaredge.com/site/${self.config.siteId}/details`;
+
+		axios.get(siteDetailsUrl, {
+			params: {
+				format: "application/json",
+				api_key: self.config.apiKey,
+			}})
+		.then(res => {
+			console.log(`node_helper ${self.name}: got SiteDetail data: ${JSON.stringify(res.data)}`);
+
+			var reply = res.data;
+			var details = reply.details;
+
+			var siteDetailsReply = {
+				name: details.name,
+				peakPower: details.peakPower,
+				maxPower: self.maxPower
+			};
+
+			self.sendSocketNotification("SITEDETAILS", siteDetailsReply);
+			console.log(`node_helper ${self.name}: sent SiteDetails ${JSON.stringify(siteDetailsReply)}`);
+
+		})
+		.catch(err => {
+			console.error(`node_helper ${self.name}: request returned error  ${err}`);
+			self.sendSocketNotification("PVERROR", err);
+		});
 	},
 
 	fetchEnergyDetails: function() {
 		var self = this;
 
-		try{
-			if (!self.config)
-				console.error(`node_helper ${self.name}:Configuration has not been set!`);
-
-			var today = new Date();
-			var lastMonth = new Date(today - 30*24*60*60000);
-			var startTime = lastMonth.toJSON().substr(0,10)+" 00:00:00";
-			var endTime = new Date(today-24*60*60000).toJSON().substr(0,10)+" 23:59:59";
-			var monitoringUrl = `https://monitoringapi.solaredge.com/site/${self.config.siteId}/energyDetails?format=application/json&api_key=${self.config.apiKey}&timeUnit=DAY&startTime=${startTime}&endTime=${endTime}`;
-
-			request({
-				url: monitoringUrl,
-				method: 'GET'
-			}, function (error, response, body) {
-				if (error) {
-					console.error(`node_helper ${self.name}: Could not get Production: ${error}`);
-					self.sendSocketNotification("PVERROR", error);
-					return;
-				}
-				if (response.statusCode >= 400 && response.statusCode < 500) {
-					console.error(`node_helper ${self.name}: request returned status ${response.statusCode}`);
-					self.sendSocketNotification("PVERROR", body);
-					return;
-				}
-				if (response.statusCode == 200) {
-					console.log(`node_helper ${self.name}: got energy details data: ${JSON.stringify(response)}`);
-
-					var reply = JSON.parse(body);
-					var energyDetails = reply.energyDetails;
-					var selfConsumption = self.sumValuesFor("SelfConsumption", energyDetails.meters);
-					var totalConsumption = self.sumValuesFor("Consumption", energyDetails.meters);
-
-					var autarchyReply = {
-						from: startTime,
-						to: endTime,
-						percentage: selfConsumption/totalConsumption
-					};
-
-					self.sendSocketNotification("AUTARCHY", autarchyReply);
-					console.log(`node_helper ${self.name}: sent autarchy ${JSON.stringify(autarchyReply)}`);
-				}
-			});
-		} catch(ex)
-		{
-			console.error(`node_helper ${self.name}: error ${ex}`);
-			self.sendSocketNotification("PVERROR", ex);
+		if (!self.config){
+			console.error(`node_helper ${self.name}:Configuration has not been set!`);
+			return;
 		}
+
+		var today = new Date();
+		var lastMonth = new Date(today - 30*24*60*60000);
+		var startTime = lastMonth.toJSON().substr(0,10)+" 00:00:00";
+		var endTime = new Date(today-24*60*60000).toJSON().substr(0,10)+" 23:59:59";
+		var energyDetailsUrl = `https://monitoringapi.solaredge.com/site/${self.config.siteId}/energyDetails`;
+
+		axios.get(energyDetailsUrl, {
+			params: {
+				format: "application/json",
+				api_key: self.config.apiKey,
+				timeUnit: "DAY",
+				startTime: startTime,
+				endTime: endTime
+			}})
+		.then(res => {
+
+			console.log(`node_helper ${self.name}: got energy details data: ${JSON.stringify(res.data)}`);
+
+			var reply = res.data;
+			var energyDetails = reply.energyDetails;
+			var selfConsumption = self.sumValuesFor("SelfConsumption", energyDetails.meters);
+			var totalConsumption = self.sumValuesFor("Consumption", energyDetails.meters);
+
+			var autarchyReply = {
+				from: startTime,
+				to: endTime,
+				percentage: selfConsumption/totalConsumption
+			};
+
+			console.log(`node_helper ${self.name}: sent autarchy ${JSON.stringify(autarchyReply)}`);
+			self.sendSocketNotification("AUTARCHY", autarchyReply);
+		})
+		.catch(err => {
+			console.error(`node_helper ${self.name}: request returned error  ${err}`);
+			self.sendSocketNotification("PVERROR", err);
+		});
 	},
 
 	fetchDiagramData: function(){
