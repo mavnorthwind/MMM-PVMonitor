@@ -317,6 +317,7 @@ Module.register("MMM-PVMonitor",{
 				name: "SoC",
 				fill: 'tozeroy',
 				line: {
+				  color: "1F77B4",
 				  shape: "spline"
 				}
 			  };
@@ -328,9 +329,10 @@ Module.register("MMM-PVMonitor",{
 				mode: 'lines',
 				line: {
 				  color: '#F80',
-				  width: 3,
+				  width: 2,
 				  shape: "spline" 
-				}
+				},
+				yaxis: "y2"
 			  };
 			  
 			  var data = [storage, temp];
@@ -343,11 +345,14 @@ Module.register("MMM-PVMonitor",{
 				  x: 0,
 				  xanchor: 'left',
 				  y: 1,
-				  bgcolor: '#0008'
+				  bgcolor: '#0008',
+				  font: {
+					  size: 8
+				  }
 				},
 				margin: {
 				  l: 20,
-				  r: 15,
+				  r: 20,
 				  t: 10,
 				  b: 20
 				},
@@ -356,13 +361,23 @@ Module.register("MMM-PVMonitor",{
 				},
 				xaxis: {
 					tickmode: "array", // If "array", the placement of the ticks is set via `tickvals` and the tick text is `ticktext`.
-					tickvals: [0, 12*3, 24*3, 36*3, 48*3, 60*3, 72*3, 84*3, 96*3-1],
+					tickvals: [0, 12*3, 24*3, 36*3, 48*3, 60*3, 72*3, 84*3, 95*3],
 				},
 				yaxis: {
 				  range: [0,100],
 				  tickmode: "array", // If "array", the placement of the ticks is set via `tickvals` and the tick text is `ticktext`.
 				  tickvals: [0, 10, 25, 50, 75, 100],
+				  tickfont: {color:'#1F77B4', size:8},
+				  ticksuffix: "%",
+				//   gridcolor: '#88F',
 				},
+				yaxis2: {
+					range: [20,60],
+					overlaying: 'y',
+					tickfont: {color:'#F80', size:8},
+					side: "right",
+					ticksuffix: "°C",
+				  },
 				shapes: [
 					{ // Threshold for 10% battery
 						type: 'line',
@@ -377,7 +392,7 @@ Module.register("MMM-PVMonitor",{
 							dash:'dash'
 						}
 					}
-					]
+				]
 			  };
 			  
 			  
