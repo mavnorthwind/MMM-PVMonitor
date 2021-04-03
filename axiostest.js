@@ -15,14 +15,29 @@ function formatDateTimeForAPI(date) {
 
 var startTime = formatDateTimeForAPI(new Date(Date.now() - 24*60*60000)); // now - 24h
 var endTime = formatDateTimeForAPI(new Date());
-var inverterDataUrl = `https://monitoringapi.solaredge.com/equipment/${config.siteId}/${config.inverterId}/data?format=application/json&api_key=${config.apiKey}&startTime=${startTime}&endTime=${endTime}`;
-var storageDataUrl = `https://monitoringapi.solaredge.com/site/${config.siteId}/storageData?format=application/json&api_key=${config.apiKey}&startTime=${startTime}&endTime=${endTime}`;
+// var inverterDataUrl = `https://monitoringapi.solaredge.com/equipment/${config.siteId}/${config.inverterId}/data?format=application/json&api_key=${config.apiKey}&startTime=${startTime}&endTime=${endTime}`;
+// var storageDataUrl = `https://monitoringapi.solaredge.com/site/${config.siteId}/storageData?format=application/json&api_key=${config.apiKey}&startTime=${startTime}&endTime=${endTime}`;
+var inverterDataUrl = `https://monitoringapi.solaredge.com/equipment/${config.siteId}/${config.inverterId}/data`;
+var storageDataUrl = `https://monitoringapi.solaredge.com/site/${config.siteId}/storageData`;
 console.log(`InverterUrl: ${inverterDataUrl}`);
 console.log(`StorageUrl: ${storageDataUrl}`);
 
+
 Promise.all([
-    axios.get(inverterDataUrl),
-    axios.get(storageDataUrl)
+    axios.get(inverterDataUrl, {
+        params: {
+            format: "application/json",
+            api_key: config.apiKey,
+            startTime: startTime,
+            endTime: endTime
+        }}),
+    axios.get(storageDataUrl, {
+        params: {
+            format: "application/json",
+            api_key: config.apiKey,
+            startTime: startTime,
+            endTime: endTime
+        }}),
 ])
 .then(res => {
     console.log("===============================================================");
