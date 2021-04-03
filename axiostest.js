@@ -13,10 +13,46 @@ function formatDateTimeForAPI(date) {
     return jsonDate;
 }
 
+
+var today = new Date();
+var lastMonth = new Date(today - 30*24*60*60000);
+var startTime = lastMonth.toJSON().substr(0,10)+" 00:00:00";
+var endTime = new Date(today-24*60*60000).toJSON().substr(0,10)+" 23:59:59";
+var energyDetailsUrl = `https://monitoringapi.solaredge.com/site/${config.siteId}/energyDetails`;
+
+axios.get(energyDetailsUrl, {
+    params: {
+        format: "application/json",
+        api_key: config.apiKey,
+        timeUnit: "DAY",
+        startTime: startTime,
+        endTime: endTime
+    }})
+.then(res => {
+
+    console.log(res.data);
+
+    var reply = res.data;
+    var energyDetails = reply.energyDetails;
+    var selfConsumption = 123;//self.sumValuesFor("SelfConsumption", energyDetails.meters);
+    var totalConsumption = 456;//self.sumValuesFor("Consumption", energyDetails.meters);
+
+    var autarchyReply = {
+        from: startTime,
+        to: endTime,
+        percentage: selfConsumption/totalConsumption
+    };
+
+    console.log(`node_helper: sent autarchy ${JSON.stringify(autarchyReply)}`);
+})
+.catch(err => {
+    console.error(`node_helper: request returned error  ${err}`);
+});
+
+return;
+
 var startTime = formatDateTimeForAPI(new Date(Date.now() - 24*60*60000)); // now - 24h
 var endTime = formatDateTimeForAPI(new Date());
-// var inverterDataUrl = `https://monitoringapi.solaredge.com/equipment/${config.siteId}/${config.inverterId}/data?format=application/json&api_key=${config.apiKey}&startTime=${startTime}&endTime=${endTime}`;
-// var storageDataUrl = `https://monitoringapi.solaredge.com/site/${config.siteId}/storageData?format=application/json&api_key=${config.apiKey}&startTime=${startTime}&endTime=${endTime}`;
 var inverterDataUrl = `https://monitoringapi.solaredge.com/equipment/${config.siteId}/${config.inverterId}/data`;
 var storageDataUrl = `https://monitoringapi.solaredge.com/site/${config.siteId}/storageData`;
 console.log(`InverterUrl: ${inverterDataUrl}`);
