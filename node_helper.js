@@ -336,12 +336,24 @@ module.exports = NodeHelper.create({
 
 		var startTime = self.formatDateTimeForAPI(new Date(Date.now() - 24*60*60000)); // now - 24h
 		var endTime = self.formatDateTimeForAPI(new Date());
-		var inverterDataUrl = `https://monitoringapi.solaredge.com/equipment/${self.config.siteId}/${self.config.inverterId}/data?format=application/json&api_key=${self.config.apiKey}&startTime=${startTime}&endTime=${endTime}`;
-		var storageDataUrl = `https://monitoringapi.solaredge.com/site/${self.config.siteId}/storageData?format=application/json&api_key=${self.config.apiKey}&startTime=${startTime}&endTime=${endTime}`;
+		var inverterDataUrl = `https://monitoringapi.solaredge.com/equipment/${self.config.siteId}/${self.config.inverterId}/data`;
+		var storageDataUrl = `https://monitoringapi.solaredge.com/site/${self.config.siteId}/storageData`;
 
 		Promise.all([
-			axios.get(inverterDataUrl),
-			axios.get(storageDataUrl)
+			axios.get(inverterDataUrl, {
+				params: {
+					format: "application/json",
+					api_key: self.config.apiKey,
+					startTime: startTime,
+					endTime: endTime
+				}}),
+			axios.get(storageDataUrl, {
+				params: {
+					format: "application/json",
+					api_key: self.config.apiKey,
+					startTime: startTime,
+					endTime: endTime
+				}}),
 		])
 		.then(res => {
 
