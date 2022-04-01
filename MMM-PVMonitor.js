@@ -23,6 +23,7 @@ Module.register("MMM-PVMonitor",{
 			timestamp: Date.now()
 		}
 	},
+	
 	productionSpan: {
 		day: new Date(),
 		firstProduction: "unknown",
@@ -34,8 +35,22 @@ Module.register("MMM-PVMonitor",{
 	storageValues: [],
 	tempTimes: [],
 	tempValues: [],
+	
+	// Tesla data
+	teslaData: undefined,
 
 	start: function() {
+
+		// var config = {
+		// 	siteId: "INSERTSITEID",
+		// 	inverterId: "INSERTINVERTERID",
+		// 	apiKey: "INSERTAPIKEY",
+		// 	interval: 30*60*1000, // update each 30 minutes
+		// 	pMax: 7.945, // nominal power (kWp)
+		// 	teslaOAuthToken: "Bearer INSERTOAUTHBEARERTOKEN",
+		//	teslaVehicleId: "INSERTVEHICLEID"
+		// };
+
 		var self = this;
 		console.log(`Starting module: ${self.name} with config ${JSON.stringify(self.config)}`);
 		
@@ -93,11 +108,17 @@ Module.register("MMM-PVMonitor",{
 			self.storageValues = payload.storageValues;
 			self.updateDom(0);
 		}
+		
+		if (notification === "TESLA") {
+			//console.log("TESLA Data received: "+JSON.stringify(payload));
+			self.teslaData = payload;
+			self.updateDom(0);
+		}
 
 		if (notification === "PVERROR") {
-			self.powerFlow = undefined;
+			//self.powerFlow = undefined;
 			self.lastError = payload;
-			self.timestamp = new Date();
+			//self.timestamp = new Date();
 			self.updateDom(0);
 		}
 	},
@@ -227,6 +248,13 @@ Module.register("MMM-PVMonitor",{
 
 		var autarchy = self.autarchy ? Math.round(self.autarchy.percentage * 100) : "?";
 
+		const milesToKm = 1.609344;
+		var teslaCharge = self.teslaData ? self.teslaData.value.charge : "?";
+		var teslaRange = self.teslaData ? Math.round(self.teslaData.value.range * milesToKm) : "?";
+		var teslaTimestamp = self.teslaData ? new Date(self.teslaData.timestamp).toLocaleString() : "?";
+		
+		var lasterror = self.lastError ? self.lastError.message : "";
+		
 		var template = 
 		`<table>
             <tr>
@@ -257,9 +285,9 @@ Module.register("MMM-PVMonitor",{
                 </td>
             </tr>
         </table>
-		<div id="diagram" class="diagram">
+		<div id="diagram" class="diagram" style="display:none">
 		</div>
-		<div class="summary" style="display:none">
+		<div class="summary">
 			Stand: ${self.timestamp.toLocaleTimeString()}; Produktion heute: ${productionToday} (gestern ${productionYesterday})
 		</div>
 		<div class="summary" style="display:none">
@@ -270,6 +298,12 @@ Module.register("MMM-PVMonitor",{
 		</div>
 		<div class="summary">
 			Autarkie der letzten 30 Tage: ${autarchy} %
+		</div>
+		<div class="summary">
+			Tesla Ladung: ${teslaCharge}% / ${teslaRange} km (Stand: ${teslaTimestamp})
+		</div>
+		<div class="lasterror">
+			${lasterror}
 		</div>
 		`;
 
@@ -285,10 +319,8 @@ Module.register("MMM-PVMonitor",{
 		var self = this;
 		var wrapper = document.createElement("div");
 		
-		if (self.lastError) {
-			wrapper.innerHTML = `<div class="error">Last error: ${JSON.stringify(self.lastError)}</div><div class="error">Received ${self.timestamp}</div>`;
-		}
-		else if (self.powerFlow) {
+		// wrapper.innerHTML = `<div class="error">Last error: ${JSON.stringify(self.lastError)}</div><div class="error">Received ${self.timestamp}</div>`;
+		if (self.powerFlow) {
 			self.html = self.fillTableTemplate(self.powerFlow);
 			wrapper.innerHTML = self.html;
 			// We must defer drawing the diagram until the DOM has been updated to contain the target div!
@@ -306,6 +338,9 @@ Module.register("MMM-PVMonitor",{
 	},
 
 	drawDiagram: function() {
+		// Diagram disabled for now until storage of battery charge has been changed.
+		return;
+		
 		var self = this;
 
 		var dia = document.getElementById("diagram");

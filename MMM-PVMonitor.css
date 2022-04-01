@@ -2,13 +2,14 @@
     border: solid #888 1px; 
     text-align: center;
     font-weight: normal;
+    font-size: smaller;
 }
 
 .MMPV_TD {
     border: solid #888 1px; 
     text-align: center;
-    width: 120px;
-    height: 120px;
+    width: 100px;
+    height: 80px;
     position: relative;
 }
 
@@ -31,19 +32,24 @@
 }
 
 .percentage {
-    font-size: small;
-    position: absolute;
+    font-size: xx-small;
+    position: relative;
     width: 100%;
-    text-align: center;
+    text-align: left;
 }
 
 .storagePower {
-    font-size: medium;
+    font-size: small;
     font-weight: bold;
     position: absolute;
     width: 100%;
-    top: 10%;
     text-align: center;
+    top: 55%;
+}
+
+.lasterror {
+		font-size: xx-small;
+		color: red;
 }
 
 .on {
