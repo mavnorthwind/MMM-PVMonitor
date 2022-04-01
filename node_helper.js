@@ -12,6 +12,8 @@ module.exports = NodeHelper.create({
 	timer: undefined,
 	timerEnergy: undefined,
 	throttler: undefined,
+	teslaThrottler: undefined,
+	teslaTimer: undefined,
 	maxPower: {
 		value: 0.001,
 		timestamp: new Date()
@@ -28,7 +30,7 @@ module.exports = NodeHelper.create({
 		console.log(`node_helper ${self.name}: Starting module`);
 
 		self.throttler = new Throttler();
-		self.throttler.minimumTimeBetweenCalls = 60000;
+		self.throttler.minimumTimeBetweenCalls = 5*60*1000;
 		self.throttler.maxCallsPerDay = 300;
 		self.throttler.setThrottleHours(22, 8);
 
@@ -43,6 +45,11 @@ module.exports = NodeHelper.create({
 			console.error(`Error reading maxPower.json: ${ex}`);
 			self.maxPower = { value: 0.001, timestamp: Date.now() };
 		}
+		
+		self.teslaThrottler = new Throttler();
+		self.teslaThrottler.minimumTimeBetweenCalls = 30*60*1000; // Once every 30 minutes
+		self.teslaThrottler.setThrottleHours(22, 6);
+		self.teslaThrottler.logThrottlingConditions();
 	},
 	
 	socketNotificationReceived: function(notification, payload)	{
@@ -69,12 +76,18 @@ module.exports = NodeHelper.create({
 					self.fetchDiagramData();
 				}, 15*60*1000); // Update diagram every 15 minutes
 
+				self.teslaTimer = setInterval(function() {
+					self.teslaThrottler.execute(() => self.fetchTeslaCharge(), (r) => console.log("TeslaCharge update throttled:"+r));
+				}, 5*60*1000);
+
 				// run request 1st time
 				self.fetchSiteDetails();
 				self.throttler.forceExecute(() => self.fetchPowerFlow());
 				self.fetchProduction();
 				self.fetchEnergyDetails();
 				self.fetchDiagramData();
+				
+				self.teslaThrottler.forceExecute(() => self.fetchTeslaCharge());
 				break;
 			case "USER_PRESENCE":
 				console.log(`node_helper ${self.name}: USER_PRESENCE ${payload}`);
@@ -294,6 +307,10 @@ module.exports = NodeHelper.create({
 	},
 
 	fetchDiagramData: function(){
+		// fetch diagram data removed because of error 403 (too many requests) from solaredge API
+		// TODO: Store battery level from powerflow request
+		return;
+		
 		var self = this;
 
 		var startTime = self.formatDateTimeForAPI(new Date(Date.now() - 24*60*60000)); // now - 24h
@@ -411,5 +428,87 @@ module.exports = NodeHelper.create({
 		var rounded = Math.floor(min/interval)*interval;
 
 		return (rounded<10) ? `${hour}:0${rounded}` : `${hour}:${rounded}`;
+	},
+	
+	fetchTeslaState: function() {
+		var self = this;
+
+		var vehiclesUrl = "https://owner-api.teslamotors.com/api/1/vehicles";
+		var oauthBearer = self.config.teslaOAuthToken;
+		var vehicleId = self.config.teslaVehicleId;
+
+		var state = "undefined";
+		
+		axios.get(vehiclesUrl, {
+			params: {
+				format: "application/json"
+			},
+			headers: {
+				"Authorization": oauthBearer
+			}})
+		.then(res => {
+			console.log(`node_helper ${self.name}: got vehicle data: ${JSON.stringify(res.data)}`);
+
+			var reply = res.data;
+			for (var vehicle of reply.response) {
+				if (vehicle.id == vehicleId)
+				{
+					state = vehicle.state;
+				}
+			}
+			return state;
+		})
+		.catch(err => {
+			console.error(`node_helper ${self.name}: request returned error  ${err}`);
+			state = err;
+			return state;
+		});
+		
+//		return state;
+	},
+	
+	fetchTeslaCharge: function() {
+		var self = this;
+
+		if (!self.config){
+			console.error(`node_helper ${self.name}:Configuration has not been set!`);
+			return;
+		}
+
+		var state = self.fetchTeslaState();
+		console.log("Vehicle state: "+state);
+
+		var oauthBearer = self.config.teslaOAuthToken;
+		var vehicleId = self.config.teslaVehicleId;
+		var chargeStateUrl = `https://owner-api.teslamotors.com/api/1/vehicles/${vehicleId}/data_request/charge_state`;
+
+		axios.get(chargeStateUrl, {
+			params: {
+				format: "application/json"
+			},
+			headers: {
+				"Authorization": oauthBearer
+			}})
+		.then(res => {
+			console.log(`node_helper ${self.name}: got charge state: ${JSON.stringify(res.data)}`);
+
+			var reply = res.data;
+
+			var teslaData = {
+				timestamp: reply.response.timestamp,
+				value: {
+					charge: reply.response.battery_level,
+					range: reply.response.battery_range
+				}
+			};
+
+			self.sendSocketNotification("TESLA", teslaData);
+			console.log(`node_helper ${self.name}: sent teslaData ${JSON.stringify(teslaData)}`);
+
+		})
+		.catch(err => {
+			console.error(`node_helper ${self.name}: request returned error  ${err}`);
+			self.sendSocketNotification("PVERROR", err);
+		});
 	},
 });
