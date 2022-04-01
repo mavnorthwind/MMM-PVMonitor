@@ -6,6 +6,7 @@ const axios = require('axios');
 
 const Throttler = require("./Throttler.js");
 const fs = require('fs');
+const SolaredgeAPI = require("./SolaredgeAPI.js");
 
 module.exports = NodeHelper.create({
 	config: undefined,
@@ -24,6 +25,8 @@ module.exports = NodeHelper.create({
 		lastProduction: '-'
 	},
 	timerDiagram: undefined,
+	solarEdgeApi: undefined,
+
 
 	start: function() {
 		var self = this;
@@ -59,6 +62,8 @@ module.exports = NodeHelper.create({
 			case "CONFIG":
 				self.config = payload;
 				
+				self.solarEdgeApi = new SolaredgeAPI(self.config.siteId, self.config.apiKey);
+
 				if (self.timer)
 					clearInterval(self.timer);
 
@@ -130,53 +135,42 @@ module.exports = NodeHelper.create({
 			return;
 		}
 
-		var powerFlowUrl = `https://monitoringapi.solaredge.com/site/${self.config.siteId}/currentPowerFlow`;
-		axios.get(powerFlowUrl, {
-			params: {
-				format: "application/json",
-				api_key: self.config.apiKey,
-			}})
-		.then(res => {
-			console.log(`node_helper ${self.name}: got powerFlow data: ${JSON.stringify(res.data)}`);
-
-			var reply = res.data;
-			var powerflow = reply.siteCurrentPowerFlow;
-
-			if (self.maxPower.value < powerflow.PV.currentPower) {
-				self.maxPower.value = powerflow.PV.currentPower;
-				self.maxPower.timestamp = Date.now();
-				fs.writeFileSync("maxPower.json", JSON.stringify(self.maxPower));
-			}
+		(async () => {
+			var powerFlow = await self.solarEdgeApi.fetchCurrentPowerFlow();
+			//console.log("Power flow: '" + JSON.stringify(powerFlow, null, 2));
 
 			var d = new Date();
-			if (self.productionSpan.day != d.getDay()) {
-				self.productionSpan.day = d.getDay();
-				self.productionSpan.firstProduction = "-";
-				self.productionSpan.lastProduction = "-";
-			}
-			if (self.productionSpan.firstProduction == "-" &&
-				powerflow.PV.currentPower > 0) {
-				self.productionSpan.firstProduction = `${d.toLocaleTimeString()}`;
-			}
-			if (self.productionSpan.firstProduction != "-" &&
-				self.productionSpan.lastProduction == "-" &&
-				powerflow.PV.currentPower <= 0 &&
-				d.getHours() > 10) { // avoid initial jitter
-				self.productionSpan.lastProduction = `${d.toLocaleTimeString()}`;
-			}
+			self.productionSpan.day = d.getDay();
+			self.productionSpan.firstProduction =
+			self.productionSpan.lastProduction = "-";
+
+			// ProductionSpan Gedöns wird eh nicht angezeigt.
+			// var d = new Date();
+			// if (self.productionSpan.day != d.getDay()) {
+			// 	self.productionSpan.day = d.getDay();
+			// 	self.productionSpan.firstProduction = "-";
+			// 	self.productionSpan.lastProduction = "-";
+			// }
+			// if (self.productionSpan.firstProduction == "-" &&
+			// 	powerflow.PV.currentPower > 0) {
+			// 	self.productionSpan.firstProduction = `${d.toLocaleTimeString()}`;
+			// }
+			// if (self.productionSpan.firstProduction != "-" &&
+			// 	self.productionSpan.lastProduction == "-" &&
+			// 	powerflow.PV.currentPower <= 0 &&
+			// 	d.getHours() > 10) { // avoid initial jitter
+			// 	self.productionSpan.lastProduction = `${d.toLocaleTimeString()}`;
+			// }
+
 
 			var powerflowReply = {
-				powerflow: powerflow,
+				powerflow: powerFlow,
 				productionSpan: self.productionSpan,
 				requestCount: self.throttler.todaysCallCount
 			};
 
 			self.sendSocketNotification("POWERFLOW", powerflowReply);
-		})
-		.catch(err => {
-			console.error(`node_helper ${self.name}: request returned error  ${err}`);
-			self.sendSocketNotification("PVERROR", err);
-		});
+		})();
 	},
 
 	fetchProduction: function() {
@@ -218,7 +212,7 @@ module.exports = NodeHelper.create({
 			self.sendSocketNotification("PRODUCTION", productionReply);
 		})
 		.catch(err => {
-			console.error(`node_helper ${self.name}: request returned error  ${err}`);
+			console.error(`node_helper ${self.name}: request for energy returned error  ${err}`);
 			self.sendSocketNotification("PVERROR", err);
 		});
 	},
@@ -255,7 +249,7 @@ module.exports = NodeHelper.create({
 
 		})
 		.catch(err => {
-			console.error(`node_helper ${self.name}: request returned error  ${err}`);
+			console.error(`node_helper ${self.name}: request for details returned error  ${err}`);
 			self.sendSocketNotification("PVERROR", err);
 		});
 	},
@@ -301,7 +295,7 @@ module.exports = NodeHelper.create({
 			self.sendSocketNotification("AUTARCHY", autarchyReply);
 		})
 		.catch(err => {
-			console.error(`node_helper ${self.name}: request returned error  ${err}`);
+			console.error(`node_helper ${self.name}: request for energyDetails returned error  ${err}`);
 			self.sendSocketNotification("PVERROR", err);
 		});
 	},
@@ -346,7 +340,7 @@ module.exports = NodeHelper.create({
 
 		})
 		.catch(err => {
-			console.error(`node_helper ${self.name}: request returned error  ${err}`);
+			console.error(`node_helper ${self.name}: request for inverterData returned error  ${err}`);
 			self.sendSocketNotification("PVERROR", err);
 		});
 	},
@@ -459,7 +453,7 @@ module.exports = NodeHelper.create({
 			return state;
 		})
 		.catch(err => {
-			console.error(`node_helper ${self.name}: request returned error  ${err}`);
+			console.error(`node_helper ${self.name}: request for vehicleData returned error  ${err}`);
 			state = err;
 			return state;
 		});
@@ -507,7 +501,7 @@ module.exports = NodeHelper.create({
 
 		})
 		.catch(err => {
-			console.error(`node_helper ${self.name}: request returned error  ${err}`);
+			console.error(`node_helper ${self.name}: request for chargeState returned error  ${err}`);
 			self.sendSocketNotification("PVERROR", err);
 		});
 	},
