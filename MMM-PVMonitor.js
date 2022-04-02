@@ -285,7 +285,7 @@ Module.register("MMM-PVMonitor",{
                 </td>
             </tr>
         </table>
-		<div id="diagram" class="diagram" style="display:none">
+		<div id="diagram" class="diagram">
 		</div>
 		<div class="summary">
 			Stand: ${self.timestamp.toLocaleTimeString()}; Produktion heute: ${productionToday} (gestern ${productionYesterday})
@@ -338,9 +338,6 @@ Module.register("MMM-PVMonitor",{
 	},
 
 	drawDiagram: function() {
-		// Diagram disabled for now until storage of battery charge has been changed.
-		return;
-		
 		var self = this;
 
 		var dia = document.getElementById("diagram");
