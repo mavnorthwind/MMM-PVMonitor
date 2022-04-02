@@ -102,16 +102,16 @@ module.exports = NodeHelper.create({
 		}
 	},
 
-	findProductionForDay: function(day, values) {
-		var prod = 0;
+	// findProductionForDay: function(day, values) {
+	// 	var prod = 0;
 
-		values.forEach(v => {
-			if (v.date.indexOf(day) >= 0)
-				prod = v.value;
-		});
+	// 	values.forEach(v => {
+	// 		if (v.date.indexOf(day) >= 0)
+	// 			prod = v.value;
+	// 	});
 
-		return prod;
-	},
+	// 	return prod;
+	// },
 
 	sumValuesFor: function(meter, meters) {
 		var res = 0;
@@ -127,7 +127,7 @@ module.exports = NodeHelper.create({
 		return res;
 	},
 
-	fetchPowerFlow: function() {
+	fetchPowerFlow: async function() {
 		var self = this;
 
 		if (!self.config){
@@ -135,45 +135,23 @@ module.exports = NodeHelper.create({
 			return;
 		}
 
-		(async () => {
-			var powerFlow = await self.solarEdgeApi.fetchCurrentPowerFlow();
-			//console.log("Power flow: '" + JSON.stringify(powerFlow, null, 2));
+		const powerFlow = await self.solarEdgeApi.fetchCurrentPowerFlow();
 
-			var d = new Date();
-			self.productionSpan.day = d.getDay();
-			self.productionSpan.firstProduction =
-			self.productionSpan.lastProduction = "-";
+		var d = new Date();
+		self.productionSpan.day = d.getDay();
+		self.productionSpan.firstProduction =
+		self.productionSpan.lastProduction = "-";
 
-			// ProductionSpan Gedöns wird eh nicht angezeigt.
-			// var d = new Date();
-			// if (self.productionSpan.day != d.getDay()) {
-			// 	self.productionSpan.day = d.getDay();
-			// 	self.productionSpan.firstProduction = "-";
-			// 	self.productionSpan.lastProduction = "-";
-			// }
-			// if (self.productionSpan.firstProduction == "-" &&
-			// 	powerflow.PV.currentPower > 0) {
-			// 	self.productionSpan.firstProduction = `${d.toLocaleTimeString()}`;
-			// }
-			// if (self.productionSpan.firstProduction != "-" &&
-			// 	self.productionSpan.lastProduction == "-" &&
-			// 	powerflow.PV.currentPower <= 0 &&
-			// 	d.getHours() > 10) { // avoid initial jitter
-			// 	self.productionSpan.lastProduction = `${d.toLocaleTimeString()}`;
-			// }
+		const powerflowReply = {
+			powerflow: powerFlow,
+			productionSpan: self.productionSpan,
+			requestCount: self.throttler.todaysCallCount
+		};
 
-
-			var powerflowReply = {
-				powerflow: powerFlow,
-				productionSpan: self.productionSpan,
-				requestCount: self.throttler.todaysCallCount
-			};
-
-			self.sendSocketNotification("POWERFLOW", powerflowReply);
-		})();
+		self.sendSocketNotification("POWERFLOW", powerflowReply);
 	},
 
-	fetchProduction: function() {
+	fetchProduction: async function() {
 		var self = this;
 
 		if (!self.config){
@@ -181,40 +159,9 @@ module.exports = NodeHelper.create({
 			return;
 		}
 
-		var today = new Date();
-		var yesterday = new Date(Date.now() - 24*60*60000);
-		var startDate = yesterday.toJSON().substr(0,10);
-		var endDate = today.toJSON().substr(0,10);
-		var energyUrl = `https://monitoringapi.solaredge.com/site/${self.config.siteId}/energy`;
+		const production = await self.solarEdgeApi.fetchProduction();
 
-		axios.get(energyUrl, {
-			params: {
-				format: "application/json",
-				api_key: self.config.apiKey,
-				timeUnit: "DAY",
-				startDate: startDate,
-				endDate: endDate
-			}})
-		.then(res => {
-			console.log(`node_helper ${self.name}: got energy data: ${JSON.stringify(res.data)}`);
-
-			var reply = res.data;
-			var energy = reply.energy;
-			var prodYesterday = self.findProductionForDay(startDate, energy.values);
-			var prodToday = self.findProductionForDay(endDate, energy.values);
-
-			var productionReply = {
-				unit: energy.unit,
-				productionToday: prodToday,
-				productionYesterday: prodYesterday
-			};
-
-			self.sendSocketNotification("PRODUCTION", productionReply);
-		})
-		.catch(err => {
-			console.error(`node_helper ${self.name}: request for energy returned error  ${err}`);
-			self.sendSocketNotification("PVERROR", err);
-		});
+		self.sendSocketNotification("PRODUCTION", productionReply);
 	},
 
 	fetchSiteDetails: function() {
