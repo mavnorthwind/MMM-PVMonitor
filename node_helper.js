@@ -62,7 +62,7 @@ module.exports = NodeHelper.create({
 			case "CONFIG":
 				self.config = payload;
 				
-				self.solarEdgeApi = new SolaredgeAPI(self.config.siteId, self.config.apiKey);
+				self.solarEdgeApi = new SolaredgeAPI(self.config.siteId, self.config.apiKey, self.config.inverterId);
 
 				if (self.timer)
 					clearInterval(self.timer);
@@ -175,7 +175,7 @@ module.exports = NodeHelper.create({
 		self.sendSocketNotification("SITEDETAILS", siteDetails);
 	},
 
-	fetchEnergyDetails: function() {
+	fetchEnergyDetails: async function() {
 		var self = this;
 
 		if (!self.config){
@@ -183,132 +183,20 @@ module.exports = NodeHelper.create({
 			return;
 		}
 
-		const autarchy = self.solarEdgeApi.fetchAutarchy();
+		const autarchy = await self.solarEdgeApi.fetchAutarchy();
 		self.sendSocketNotification("AUTARCHY", autarchy);
 	},
 
-	fetchDiagramData: function(){
-		// fetch diagram data removed because of error 403 (too many requests) from solaredge API
-		// TODO: Store battery level from powerflow request
-		return;
-		
+	fetchDiagramData: async function() {
 		var self = this;
 
-		var startTime = self.formatDateTimeForAPI(new Date(Date.now() - 24*60*60000)); // now - 24h
-		var endTime = self.formatDateTimeForAPI(new Date());
-		var inverterDataUrl = `https://monitoringapi.solaredge.com/equipment/${self.config.siteId}/${self.config.inverterId}/data`;
-		var storageDataUrl = `https://monitoringapi.solaredge.com/site/${self.config.siteId}/storageData`;
-
-		Promise.all([
-			axios.get(inverterDataUrl, {
-				params: {
-					format: "application/json",
-					api_key: self.config.apiKey,
-					startTime: startTime,
-					endTime: endTime
-				}}),
-			axios.get(storageDataUrl, {
-				params: {
-					format: "application/json",
-					api_key: self.config.apiKey,
-					startTime: startTime,
-					endTime: endTime
-				}}),
-		])
-		.then(res => {
-
-			var inverterData = res[0].data;
-			var storageData = res[1].data;
-
-			var diagramReply = self.buildDiagramData(inverterData, storageData);
-
-			console.log(`node_helper ${self.name}: sent diagram data ${JSON.stringify(diagramReply)}`);
-			self.sendSocketNotification("DIAGRAMDATA", diagramReply);
-
-		})
-		.catch(err => {
-			console.error(`node_helper ${self.name}: request for inverterData returned error  ${err}`);
-			self.sendSocketNotification("PVERROR", err);
-		});
-	},
-
-	buildDiagramData: function(inverterData, storageData) {
-		var self=this;
-
-		var storageTimes = [];
-		var storageValues = [];
-		var tempTimes = [];
-		var tempValues = [];
-
-		for (var i=0; i<inverterData.data.telemetries.length; i++) {
-			var telemetry = inverterData.data.telemetries[i];
-			var roundedTime = self.roundApiTime(telemetry.date, 5); // Round to 5 Minute intervals
-			tempTimes.push(roundedTime);
-			tempValues.push(telemetry.temperature);
+		if (!self.config){
+			console.error(`node_helper ${self.name}:Configuration has not been set!`);
+			return;
 		}
 
-		for (var i=0; i<storageData.storageData.batteries[0].telemetries.length; i++) {
-			var telemetry = storageData.storageData.batteries[0].telemetries[i];
-			var roundedTime = self.roundApiTime(telemetry.timeStamp, 5);
-			storageTimes.push(roundedTime);
-			storageValues.push(telemetry.batteryPercentageState);
-		}
-
-		// var tempStart = 40;
-		// var storageStart = 100;
-
-		// var resolution = 15;
-		// for (var t=0; t <= 24 * 60; t+=resolution){
-		// 	var h = Math.floor(t/60);
-		// 	var m = t-h*60;
-		// 	h = (h<10) ? `0${h}` : `${h}`;
-		// 	m = (m<10) ? `0${m}` : `${m}`;
-		// 	storageTimes.push(`${h}:${m}`);
-		// 	tempTimes.push(`${h}:${m}`);
-
-		// 	var dTemp = Math.random();
-		// 	tempStart += (dTemp > 0.5) ? 1 : -1;
-		// 	var dStorage = Math.random();
-		// 	storageStart += (dStorage > 0.5) ? 5 : -5;
-
-		// 	storageStart = Math.min(100, Math.max(0, storageStart));
-		// 	storageValues.push(storageStart);
-		// 	tempStart = Math.min(60, Math.max(15, tempStart));
-		// 	tempValues.push(tempStart);
-		// }
-
-		var diagramReply = {
-			storageTimes: storageTimes,
-			storageValues: storageValues,
-			tempTimes: tempTimes,
-			tempValues: tempValues
-		};
-
-		return diagramReply;
-	},
-
-	formatDateTimeForAPI: function(date) {
-		var year = date.getFullYear();
-		var month = date.getMonth()+1;
-		month = month<10 ? `0${month}`:`${month}`;
-		var day = date.getDate();
-		day = day<10 ? `0${day}`:`${day}`;
-		var hour = date.getHours();
-		hour = hour<10 ? `0${hour}`:`${hour}`;
-		var min = date.getMinutes();
-		min = min<10 ? `0${min}`:`${min}`;
-
-		return `${year}-${month}-${day} ${hour}:${min}:00`;
-	},
-
-	roundApiTime(apiDateTime, interval) {
-		// apiDateTime is in the format "2021-04-02 02:37:41"
-		var time = apiDateTime.substr(11,5);
-		var hour = parseInt(time.substr(0,2));
-		var min = parseInt(time.substr(3));
-		var rounded = Math.floor(min/interval)*interval;
-
-		return (rounded<10) ? `${hour}:0${rounded}` : `${hour}:${rounded}`;
+		const diagramData = await self.solarEdgeApi.fetchDiagramData();
+		self.sendSocketNotification("DIAGRAMDATA", diagramData);
 	},
 	
 	fetchTeslaState: function() {

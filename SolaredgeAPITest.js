@@ -1,9 +1,9 @@
 const siteId = "InsertSiteID";
 const apikey = "InsertApiKey";
+const inverterId = "InsertConverterID";
 
 const SolaredgeAPI = require("./SolaredgeAPI.js");
-const api = new SolaredgeAPI(siteId, apikey);
-
+const api = new SolaredgeAPI(siteId, apikey, inverterId);
 
 (async function main() {
     var details = await api.fetchSiteDetails();
@@ -18,4 +18,7 @@ const api = new SolaredgeAPI(siteId, apikey);
 
     var autarchy = await api.fetchAutarchy();
     console.log(`Autarchy: ${JSON.stringify(autarchy,null,2)}`);
+
+    var diagramData = await api.fetchDiagramData();
+    console.log(`DiagramData: ${JSON.stringify(diagramData,null,2)}`);
 })();

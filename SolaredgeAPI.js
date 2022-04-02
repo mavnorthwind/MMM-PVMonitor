@@ -7,11 +7,13 @@ const fs = require('fs');
 class SolaredgeAPI {
     #siteId = undefined;
     #apiKey = undefined;
+	#inverterId = undefined;
     #maxPower = undefined;
 
-    constructor(siteId, apiKey) {
+    constructor(siteId, apiKey, inverterId) {
         this.#siteId = siteId;
         this.#apiKey = apiKey;
+		this.#inverterId = inverterId;
 
 		try {
             this.#maxPower = JSON.parse(fs.readFileSync("maxPower.json"));
@@ -26,6 +28,10 @@ class SolaredgeAPI {
     get siteId() {
         return this.#siteId;
     }
+
+	get inverterId() {
+		return this.#inverterId;
+	}
 
     get maxPower() {
         return this.#maxPower;
@@ -172,7 +178,7 @@ class SolaredgeAPI {
 		} catch(error) {
 			console.error(`Request for energy returned error  ${error}`);
 		};
-	};
+	}
 
 	#sumValuesFor(meter, meters) {
 		var res = 0;
@@ -224,6 +230,94 @@ class SolaredgeAPI {
 			return autarchy;
 		} catch(error) {
 			console.error(`Request for energyDetails returned error  ${error}`);
+		}
+	}
+
+	#buildDiagramData(inverterData, storageData) {
+		var storageTimes = [];
+		var storageValues = [];
+		var tempTimes = [];
+		var tempValues = [];
+
+		for (var i=0; i<inverterData.data.telemetries.length; i++) {
+			var telemetry = inverterData.data.telemetries[i];
+			var roundedTime = this.#roundApiTime(telemetry.date, 5); // Round to 5 Minute intervals
+			tempTimes.push(roundedTime);
+			tempValues.push(telemetry.temperature);
+		}
+
+		for (var i=0; i<storageData.storageData.batteries[0].telemetries.length; i++) {
+			var telemetry = storageData.storageData.batteries[0].telemetries[i];
+			var roundedTime = this.#roundApiTime(telemetry.timeStamp, 5);
+			storageTimes.push(roundedTime);
+			storageValues.push(telemetry.batteryPercentageState);
+		}
+
+		const diagramReply = {
+			storageTimes: storageTimes,
+			storageValues: storageValues,
+			tempTimes: tempTimes,
+			tempValues: tempValues
+		};
+
+		return diagramReply;
+	}
+
+	#formatDateTimeForAPI(date) {
+		var year = date.getFullYear();
+		var month = date.getMonth()+1;
+		month = month<10 ? `0${month}`:`${month}`;
+		var day = date.getDate();
+		day = day<10 ? `0${day}`:`${day}`;
+		var hour = date.getHours();
+		hour = hour<10 ? `0${hour}`:`${hour}`;
+		var min = date.getMinutes();
+		min = min<10 ? `0${min}`:`${min}`;
+
+		return `${year}-${month}-${day} ${hour}:${min}:00`;
+	}
+
+	#roundApiTime(apiDateTime, interval) {
+		// apiDateTime is in the format "2021-04-02 02:37:41"
+		var time = apiDateTime.substr(11,5);
+		var hour = parseInt(time.substr(0,2));
+		var min = parseInt(time.substr(3));
+		var rounded = Math.floor(min/interval)*interval;
+
+		return (rounded<10) ? `${hour}:0${rounded}` : `${hour}:${rounded}`;
+	}
+
+	async fetchDiagramData() {
+		const startTime = this.#formatDateTimeForAPI(new Date(Date.now() - 24*60*60000)); // now - 24h
+		const endTime = this.#formatDateTimeForAPI(new Date());
+		const inverterDataUrl = `https://monitoringapi.solaredge.com/equipment/${this.#siteId}/${this.#inverterId}/data`;
+		const storageDataUrl = `https://monitoringapi.solaredge.com/site/${this.#siteId}/storageData`;
+
+		try{
+			var res = await Promise.all([
+				axios.get(inverterDataUrl, {
+					params: {
+						format: "application/json",
+						api_key: this.#apiKey,
+						startTime: startTime,
+						endTime: endTime
+					}}),
+				axios.get(storageDataUrl, {
+					params: {
+						format: "application/json",
+						api_key: this.#apiKey,
+						startTime: startTime,
+						endTime: endTime
+					}}),
+			]);
+			
+			const inverterData = res[0].data;
+			const storageData = res[1].data;
+
+			const diagramReply = this.#buildDiagramData(inverterData, storageData);
+			return diagramReply;
+		} catch(error) {
+			console.error(`Request for inverterData returned error  ${error}`);
 		}
 	}
 }
