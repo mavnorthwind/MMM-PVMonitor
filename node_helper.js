@@ -113,19 +113,19 @@ module.exports = NodeHelper.create({
 	// 	return prod;
 	// },
 
-	sumValuesFor: function(meter, meters) {
-		var res = 0;
-		for (var m=0; m<meters.length; m++){
-			if (meters[m].type.toLocaleLowerCase() == meter.toLocaleLowerCase()) {
-				for (var i=0; i<meters[m].values.length; i++){
-					res += meters[m].values[i].value;
-				}
-				break;
-			}
-		}
+	// sumValuesFor: function(meter, meters) {
+	// 	var res = 0;
+	// 	for (var m=0; m<meters.length; m++){
+	// 		if (meters[m].type.toLocaleLowerCase() == meter.toLocaleLowerCase()) {
+	// 			for (var i=0; i<meters[m].values.length; i++){
+	// 				res += meters[m].values[i].value;
+	// 			}
+	// 			break;
+	// 		}
+	// 	}
 
-		return res;
-	},
+	// 	return res;
+	// },
 
 	fetchPowerFlow: async function() {
 		var self = this;
@@ -160,11 +160,10 @@ module.exports = NodeHelper.create({
 		}
 
 		const production = await self.solarEdgeApi.fetchProduction();
-
-		self.sendSocketNotification("PRODUCTION", productionReply);
+		self.sendSocketNotification("PRODUCTION", production);
 	},
 
-	fetchSiteDetails: function() {
+	fetchSiteDetails: async function() {
 		var self = this;
 
 		if (!self.config){
@@ -172,33 +171,8 @@ module.exports = NodeHelper.create({
 			return;
 		}
 
-		var siteDetailsUrl = `https://monitoringapi.solaredge.com/site/${self.config.siteId}/details`;
-
-		axios.get(siteDetailsUrl, {
-			params: {
-				format: "application/json",
-				api_key: self.config.apiKey,
-			}})
-		.then(res => {
-			console.log(`node_helper ${self.name}: got SiteDetail data: ${JSON.stringify(res.data)}`);
-
-			var reply = res.data;
-			var details = reply.details;
-
-			var siteDetailsReply = {
-				name: details.name,
-				peakPower: details.peakPower,
-				maxPower: self.maxPower
-			};
-
-			self.sendSocketNotification("SITEDETAILS", siteDetailsReply);
-			console.log(`node_helper ${self.name}: sent SiteDetails ${JSON.stringify(siteDetailsReply)}`);
-
-		})
-		.catch(err => {
-			console.error(`node_helper ${self.name}: request for details returned error  ${err}`);
-			self.sendSocketNotification("PVERROR", err);
-		});
+		const siteDetails = await self.solarEdgeApi.fetchSiteDetails();
+		self.sendSocketNotification("SITEDETAILS", siteDetails);
 	},
 
 	fetchEnergyDetails: function() {
@@ -209,42 +183,8 @@ module.exports = NodeHelper.create({
 			return;
 		}
 
-		var today = new Date();
-		var lastMonth = new Date(today - 30*24*60*60000);
-		var startTime = lastMonth.toJSON().substr(0,10)+" 00:00:00";
-		var endTime = new Date(today-24*60*60000).toJSON().substr(0,10)+" 23:59:59";
-		var energyDetailsUrl = `https://monitoringapi.solaredge.com/site/${self.config.siteId}/energyDetails`;
-
-		axios.get(energyDetailsUrl, {
-			params: {
-				format: "application/json",
-				api_key: self.config.apiKey,
-				timeUnit: "DAY",
-				startTime: startTime,
-				endTime: endTime
-			}})
-		.then(res => {
-
-			console.log(`node_helper ${self.name}: got energy details data: ${JSON.stringify(res.data)}`);
-
-			var reply = res.data;
-			var energyDetails = reply.energyDetails;
-			var selfConsumption = self.sumValuesFor("SelfConsumption", energyDetails.meters);
-			var totalConsumption = self.sumValuesFor("Consumption", energyDetails.meters);
-
-			var autarchyReply = {
-				from: startTime,
-				to: endTime,
-				percentage: selfConsumption/totalConsumption
-			};
-
-			console.log(`node_helper ${self.name}: sent autarchy ${JSON.stringify(autarchyReply)}`);
-			self.sendSocketNotification("AUTARCHY", autarchyReply);
-		})
-		.catch(err => {
-			console.error(`node_helper ${self.name}: request for energyDetails returned error  ${err}`);
-			self.sendSocketNotification("PVERROR", err);
-		});
+		const autarchy = self.solarEdgeApi.fetchAutarchy();
+		self.sendSocketNotification("AUTARCHY", autarchy);
 	},
 
 	fetchDiagramData: function(){

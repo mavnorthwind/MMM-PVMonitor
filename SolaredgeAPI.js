@@ -7,16 +7,13 @@ const fs = require('fs');
 class SolaredgeAPI {
     #siteId = undefined;
     #apiKey = undefined;
-    #siteDetails = undefined;
     #maxPower = undefined;
 
     constructor(siteId, apiKey) {
         this.#siteId = siteId;
         this.#apiKey = apiKey;
 
-        this.#siteDetails = undefined;
-
-        try {
+		try {
             this.#maxPower = JSON.parse(fs.readFileSync("maxPower.json"));
 		} catch (ex)
 		{
@@ -28,13 +25,6 @@ class SolaredgeAPI {
 
     get siteId() {
         return this.#siteId;
-    }
-
-    get siteDetails() {
-        if (!this.#siteDetails)
-            this.#siteDetails = this.fetchSiteDetails();
-
-        return this.#siteDetails;
     }
 
     get maxPower() {
@@ -81,12 +71,12 @@ class SolaredgeAPI {
 
     //
     // powerFlow {
-    // 	unit: "kW",
-	//	connections: [{from:"PV", to:"Load"},...],
-	//	GRID:	{status:"active", currentPower:0.01},
-	//	LOAD:	{status:"active", currentPower:0.01},
-	//	PV: 	{status:"active", currentPower:0.01},
-	//	STORAGE:{status:"active", currentPower:0.01, chargeLevel:14, critical: false},
+    // 	"unit": "kW",
+	//	"connections": [{"from":"PV", "to":"Load"},...],
+	//	"GRID":		{"status":"active", "currentPower":0.71},
+	//	"LOAD":		{"status":"active", "currentPower":0.92},
+	//	"PV": 		{"status":"active", "currentPower":0.11},
+	//	"STORAGE":	{"status":"active", "currentPower":0.10, chargeLevel:14, critical: false},
     // }
     //
     async fetchCurrentPowerFlow() {
@@ -130,7 +120,7 @@ class SolaredgeAPI {
 		} catch (error) {
 			console.error(`Request for powerflow returned error  ${error}`);
 		}
-    };
+    }
 
 	#findProductionForDay(day, values) {
 		var prod = 0;
@@ -141,11 +131,13 @@ class SolaredgeAPI {
 		});
 
 		return prod;
-	};
+	}
 
 	//
 	//	production: {
-	//		
+	//	"unit": "Wh",
+  	//	"productionToday": 2983,
+  	//	"productionYesterday": 5280	
 	//	}
 	//
 	async fetchProduction() {
@@ -180,6 +172,59 @@ class SolaredgeAPI {
 		} catch(error) {
 			console.error(`Request for energy returned error  ${error}`);
 		};
+	};
+
+	#sumValuesFor(meter, meters) {
+		var res = 0;
+		for (var m=0; m<meters.length; m++){
+			if (meters[m].type.toLocaleLowerCase() == meter.toLocaleLowerCase()) {
+				for (var i=0; i<meters[m].values.length; i++){
+					res += meters[m].values[i].value;
+				}
+				break;
+			}
+		}
+
+		return res;
+	}
+
+	//
+	// autarchy: {
+	//	"from": "2022-03-03 00:00:00",
+	//	"to":	"2022-04-01 23:59:59",
+	//	"percentage": 0.84744
+	// }
+	async fetchAutarchy() {
+		const today = new Date();
+		const lastMonth = new Date(today - 30*24*60*60000);
+		const startTime = lastMonth.toJSON().substr(0,10)+" 00:00:00";
+		const endTime = new Date(today-24*60*60000).toJSON().substr(0,10)+" 23:59:59";
+		const energyDetailsUrl = `https://monitoringapi.solaredge.com/site/${this.#siteId}/energyDetails`;
+
+		try {
+			const res = await axios.get(energyDetailsUrl, {
+				params: {
+					format: "application/json",
+					api_key: this.#apiKey,
+					timeUnit: "DAY",
+					startTime: startTime,
+					endTime: endTime
+				}});
+
+			const energyDetails = res.data.energyDetails;
+			const selfConsumption = this.#sumValuesFor("SelfConsumption", energyDetails.meters);
+			const totalConsumption = this.#sumValuesFor("Consumption", energyDetails.meters);
+
+			const autarchy = {
+				from: startTime,
+				to: endTime,
+				percentage: selfConsumption/totalConsumption
+			};
+
+			return autarchy;
+		} catch(error) {
+			console.error(`Request for energyDetails returned error  ${error}`);
+		}
 	}
 }
 
