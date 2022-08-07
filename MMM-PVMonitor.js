@@ -114,6 +114,10 @@ Module.register("MMM-PVMonitor",{
 			self.teslaData = payload;
 			self.updateDom(0);
 		}
+		
+		if (notification === "USER_RESENCE" && payload == true) {
+			self.updateDom(500);
+		}
 
 		if (notification === "PVERROR") {
 			//self.powerFlow = undefined;
@@ -249,10 +253,12 @@ Module.register("MMM-PVMonitor",{
 		var autarchy = self.autarchy ? Math.round(self.autarchy.percentage * 100) : "?";
 
 		const milesToKm = 1.609344;
-		var teslaCharge = self.teslaData ? self.teslaData.value.charge : "?";
-		var teslaRange = self.teslaData ? Math.round(self.teslaData.value.range * milesToKm) : "?";
+		var teslaBatteryLevel = self.teslaData ? self.teslaData.batteryLevel : "?";
+		var teslaBatteryRange = self.teslaData ? Math.round(self.teslaData.batteryRange * milesToKm) : "?";
 		var teslaTimestamp = self.teslaData ? new Date(self.teslaData.timestamp).toLocaleString() : "?";
-		
+		var teslaChargingState = self.teslaData ? self.teslaData.chargingState : "?";
+		var teslaState = self.teslaData ? self.teslaData.state : "?";
+		var teslaMinutesToFullCharge = self.teslaData ? self.teslaData.minutesToFullCharge : 0;
 		var lasterror = self.lastError ? self.lastError.message : "";
 		
 		var template = 
@@ -300,7 +306,8 @@ Module.register("MMM-PVMonitor",{
 			Autarkie der letzten 30 Tage: ${autarchy} %
 		</div>
 		<div class="summary">
-			Tesla Ladung: ${teslaCharge}% / ${teslaRange} km (Stand: ${teslaTimestamp})
+			Tesla Ladung: ${teslaBatteryLevel}% / ${teslaBatteryRange} km (Stand: ${teslaTimestamp})<br/>
+			Ladestatus: ${teslaChargingState}; Minuten verbleibend: ${teslaMinutesToFullCharge}
 		</div>
 		<div class="lasterror">
 			${lasterror}
