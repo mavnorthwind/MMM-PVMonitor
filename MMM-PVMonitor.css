@@ -47,6 +47,16 @@
     top: 55%;
 }
 
+.teslaCharge {
+	font-size: small;
+	font-weight: bold;
+	position: absolute;
+	text-align: center;
+	top: 55%;
+	left: 0%;
+	width: 100%;
+}
+
 .lasterror {
 		font-size: xx-small;
 		color: red;
@@ -66,6 +76,7 @@
     left: calc(50% - 28px); /* 28 px = 1/2 overlay image width */
 }
 
+
 .overlayRight {
     z-index: 1000;
     position: absolute;
@@ -78,6 +89,13 @@
     position: absolute;
     left: -28px;
     top: calc(50% - 28px);
+}
+
+.chargeAbove {
+    z-index: 1000;
+    position: absolute;
+    top: -16px;
+    left: 0%;
 }
 
 .error {

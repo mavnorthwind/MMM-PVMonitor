@@ -252,14 +252,18 @@ Module.register("MMM-PVMonitor",{
 
 		var autarchy = self.autarchy ? Math.round(self.autarchy.percentage * 100) : "?";
 
+		var teslaImage = self.file("Images/Tesla_Model3_red.svg");
 		const milesToKm = 1.609344;
 		var teslaBatteryLevel = self.teslaData ? self.teslaData.batteryLevel : "?";
 		var teslaBatteryRange = self.teslaData ? Math.round(self.teslaData.batteryRange * milesToKm) : "?";
-		var teslaTimestamp = self.teslaData ? new Date(self.teslaData.timestamp).toLocaleString() : "?";
+		var teslaTimestamp = self.teslaData ? new Date(self.teslaData.timestamp).toLocaleTimeString() : "?";
 		var teslaChargingState = self.teslaData ? self.teslaData.chargingState : "?";
 		var teslaState = self.teslaData ? self.teslaData.state : "?";
 		var teslaMinutesToFullCharge = self.teslaData ? self.teslaData.minutesToFullCharge : 0;
+		var teslaChargePower = self.teslaData ? self.teslaData.chargerPower : 0;
+		var teslaChargeCurrent = self.teslaData ? self.teslaData.chargerActualCurrent : 0;
 		var lasterror = self.lastError ? self.lastError.message : "";
+		var teslaChargeClass = self.teslaData ? (self.teslaData.chargingState=="Charging" ? "" : "off") : "off";
 		
 		var template = 
 		`<table>
@@ -290,8 +294,9 @@ Module.register("MMM-PVMonitor",{
 					<div class="storagePower">${storagePower}</div>
                 </td>
 				<td class="MMPV_TD">
-					<img src="images/Tesla_Model3_red.svg" />
-					${teslaBatteryLevel}% / ${teslaBatteryRange}km
+					<span class="${teslaChargeClass} chargeAbove teslaCharge">Charge ${teslaChargeCurrent}A/${teslaChargePower}kW</span>
+					<img src="${teslaImage}" width="96px"/>
+					<span class="teslaCharge">${teslaBatteryLevel}% / ${teslaBatteryRange}km</span>
 				</td>
             </tr>
         </table>
@@ -310,8 +315,8 @@ Module.register("MMM-PVMonitor",{
 			Autarkie der letzten 30 Tage: ${autarchy} %
 		</div>
 		<div class="summary">
-			Tesla Ladung: ${teslaBatteryLevel}% / ${teslaBatteryRange} km (Stand: ${teslaTimestamp})<br/>
-			Ladestatus: ${teslaChargingState}; Minuten verbleibend: ${teslaMinutesToFullCharge}
+			Ladestatus: ${teslaChargingState}; noch ${teslaMinutesToFullCharge} Min.<br/>
+			Stand: ${teslaTimestamp}
 		</div>
 		<div class="lasterror">
 			${lasterror}
