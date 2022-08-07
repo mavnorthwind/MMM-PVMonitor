@@ -6,6 +6,7 @@ class Throttler {
     #lastCallTimestamp;
     #callsToday = 0;
     #throttleHours = undefined;
+    #overrideThrottleCallback = undefined; // function(Throttler throttler, string throttleReason): bool
 
     constructor() {
         this.maxCalls = undefined;
@@ -29,6 +30,10 @@ class Throttler {
         return this.#throttleHours;
     }
     
+    setOverrideThrottleCallback(cb) {
+        this.#overrideThrottleCallback = cb;
+    }
+    
     setThrottleHours(start, end) {
         this.#throttleHours = [start, end];
     }
@@ -39,6 +44,7 @@ class Throttler {
         this.#callsToday = 0;
         this.#lastCallTimestamp = undefined;
         this.#throttleHours = undefined;
+        this.#overrideThrottleCallback = undefined;
     }
 
     forceExecute(func) {
@@ -52,21 +58,22 @@ class Throttler {
     }
 
     execute(func, throttleCallback) {
+        var throttleReason = undefined;
+        var throttleCall = false;
+
         if (this.maxCalls &&
             this.#totalCallCount >= this.maxCalls) {
             
-            this.#totalThrottledCallCount++;
-            if (throttleCallback) throttleCallback("Over max calls");
-            return false;
+            throttleReason = "Over max calls";
+            throttleCall = true;
         }
 
         if (this.minimumTimeBetweenCalls &&
             this.#lastCallTimestamp &&
             Date.now()-this.#lastCallTimestamp < this.minimumTimeBetweenCalls) {
 
-            this.#totalThrottledCallCount++;
-            if (throttleCallback) throttleCallback("Too soon after last call");
-            return false;
+            throttleReason = "Too soon after last call";
+            throttleCall = true;
         }
 
         if (this.maxCallsPerDay) {
@@ -76,9 +83,9 @@ class Throttler {
             }
 
             if (this.#callsToday >= this.maxCallsPerDay) {
-                this.#totalThrottledCallCount++;
-                if (throttleCallback) throttleCallback("Over max calls today");
-                return false;
+                
+                throttleReason = "Over max calls today";
+                throttleCall = true;
             }
         }
 
@@ -86,19 +93,33 @@ class Throttler {
             var currentHour = new Date().getHours();
             if (currentHour >= this.#throttleHours[0] &&
                 currentHour <= this.#throttleHours[1]) {
-                this.#totalThrottledCallCount++;
-                if (throttleCallback) throttleCallback("Within throttling hours");
-                return false;
+                
+                throttleReason = "Within throttling hours";
+                throttleCall = true;
             }
         }
 
-        this.#totalCallCount++;
-        this.#callsToday++;
-        this.#lastCallTimestamp = Date.now();
+        if (throttleCall && this.#overrideThrottleCallback) {
+            var overrideThrottle = this.#overrideThrottleCallback(this, throttleReason);
+            if (overrideThrottle) {
+                throttleReason = undefined;
+                throttleCall = false;
+            }
+        }
 
-        func();
+        if (throttleCall) {
+            this.#totalThrottledCallCount++;
+            if (throttleCallback) throttleCallback(throttleReason);
+            return false;
+        } else {
+            this.#totalCallCount++;
+            this.#callsToday++;
+            this.#lastCallTimestamp = Date.now();
 
-        return true;
+            func();
+
+            return true;
+        }
     }
 
     logThrottlingConditions() {
@@ -115,6 +136,9 @@ class Throttler {
         
         if (this.#throttleHours)
             limitations = limitations.concat(`No calls between ${this.#throttleHours[0]}:00 and ${this.#throttleHours[1]}:00`);
+
+        if (this.#overrideThrottleCallback)
+            limitations = limitations.concat(`Throttling can be overriden by calls to ${this.#overrideThrottleCallback}`);
 
         if (limitations.length > 0)
         {

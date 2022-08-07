@@ -247,12 +247,18 @@ module.exports = NodeHelper.create({
 
 		var proc = spawn('/home/pi/tmp/tesla/bin/Debug/net5.0/QueryTesla', [], { cwd: '/home/pi/tmp/tesla/bin/Debug/net5.0' });
 		var out = "";
+		var err = "";
 		proc.stdout.on('data', function(data) { out += data; });
-		proc.stderr.on('data', function(data) { console.error(data); });
+		proc.stderr.on('data', function(data) { console.error(data); err += data; });
 		proc.on('exit', function() {
-			var teslaData = JSON.parse(out);
-			self.sendSocketNotification("TESLA", teslaData);
-			console.log(`node_helper ${self.name}: sent teslaData ${JSON.stringify(teslaData)}`);
+			if (err != "") {
+				self.sendSocketNotification("TESLAERROR", err);
+				console.log(`node_helper ${self.name}: sent error occurred during Tesla query: ${err}`);
+			} else {
+				var teslaData = JSON.parse(out);
+				self.sendSocketNotification("TESLA", teslaData);
+				console.log(`node_helper ${self.name}: sent teslaData ${JSON.stringify(teslaData)}`);
+			}
 		});
 	},
 });
