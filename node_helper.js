@@ -7,6 +7,7 @@ const axios = require('axios');
 const Throttler = require("./Throttler.js");
 const fs = require('fs');
 const SolaredgeAPI = require("./SolaredgeAPI.js");
+const spawn = require('child_process').spawn;
 
 module.exports = NodeHelper.create({
 	config: undefined,
@@ -50,7 +51,7 @@ module.exports = NodeHelper.create({
 		}
 		
 		self.teslaThrottler = new Throttler();
-		self.teslaThrottler.minimumTimeBetweenCalls = 30*60*1000; // Once every 30 minutes
+		self.teslaThrottler.minimumTimeBetweenCalls = 60*60*1000; // Once every 60 minutes
 		self.teslaThrottler.setThrottleHours(22, 6);
 		self.teslaThrottler.logThrottlingConditions();
 	},
@@ -83,7 +84,7 @@ module.exports = NodeHelper.create({
 
 				self.teslaTimer = setInterval(function() {
 					self.teslaThrottler.execute(() => self.fetchTeslaCharge(), (r) => console.log("TeslaCharge update throttled:"+r));
-				}, 5*60*1000);
+				}, 30*60*1000);
 
 				// run request 1st time
 				self.fetchSiteDetails();
@@ -199,42 +200,42 @@ module.exports = NodeHelper.create({
 		self.sendSocketNotification("DIAGRAMDATA", diagramData);
 	},
 	
-	fetchTeslaState: function() {
-		var self = this;
+	// fetchTeslaState: function() {
+		// var self = this;
 
-		var vehiclesUrl = "https://owner-api.teslamotors.com/api/1/vehicles";
-		var oauthBearer = self.config.teslaOAuthToken;
-		var vehicleId = self.config.teslaVehicleId;
+		// var vehiclesUrl = "https://owner-api.teslamotors.com/api/1/vehicles";
+		// var oauthBearer = self.config.teslaOAuthToken;
+		// var vehicleId = self.config.teslaVehicleId;
 
-		var state = "undefined";
+		// var state = "undefined";
 		
-		axios.get(vehiclesUrl, {
-			params: {
-				format: "application/json"
-			},
-			headers: {
-				"Authorization": oauthBearer
-			}})
-		.then(res => {
-			console.log(`node_helper ${self.name}: got vehicle data: ${JSON.stringify(res.data)}`);
+		// axios.get(vehiclesUrl, {
+			// params: {
+				// format: "application/json"
+			// },
+			// headers: {
+				// "Authorization": oauthBearer
+			// }})
+		// .then(res => {
+			// console.log(`node_helper ${self.name}: got vehicle data: ${JSON.stringify(res.data)}`);
 
-			var reply = res.data;
-			for (var vehicle of reply.response) {
-				if (vehicle.id == vehicleId)
-				{
-					state = vehicle.state;
-				}
-			}
-			return state;
-		})
-		.catch(err => {
-			console.error(`node_helper ${self.name}: request for vehicleData returned error  ${err}`);
-			state = err;
-			return state;
-		});
+			// var reply = res.data;
+			// for (var vehicle of reply.response) {
+				// if (vehicle.id == vehicleId)
+				// {
+					// state = vehicle.state;
+				// }
+			// }
+			// return state;
+		// })
+		// .catch(err => {
+			// console.error(`node_helper ${self.name}: request for vehicleData returned error  ${err}`);
+			// state = err;
+			// return state;
+		// });
 		
-//		return state;
-	},
+// //		return state;
+	// },
 	
 	fetchTeslaCharge: function() {
 		var self = this;
@@ -244,40 +245,14 @@ module.exports = NodeHelper.create({
 			return;
 		}
 
-		var state = self.fetchTeslaState();
-		console.log("Vehicle state: "+state);
-
-		var oauthBearer = self.config.teslaOAuthToken;
-		var vehicleId = self.config.teslaVehicleId;
-		var chargeStateUrl = `https://owner-api.teslamotors.com/api/1/vehicles/${vehicleId}/data_request/charge_state`;
-
-		axios.get(chargeStateUrl, {
-			params: {
-				format: "application/json"
-			},
-			headers: {
-				"Authorization": oauthBearer
-			}})
-		.then(res => {
-			console.log(`node_helper ${self.name}: got charge state: ${JSON.stringify(res.data)}`);
-
-			var reply = res.data;
-
-			var teslaData = {
-				timestamp: reply.response.timestamp,
-				value: {
-					charge: reply.response.battery_level,
-					range: reply.response.battery_range
-				}
-			};
-
+		var proc = spawn('/home/pi/tmp/tesla/bin/Debug/net5.0/QueryTesla', [], { cwd: '/home/pi/tmp/tesla/bin/Debug/net5.0' });
+		var out = "";
+		proc.stdout.on('data', function(data) { out += data; });
+		proc.stderr.on('data', function(data) { console.error(data); });
+		proc.on('exit', function() {
+			var teslaData = JSON.parse(out);
 			self.sendSocketNotification("TESLA", teslaData);
 			console.log(`node_helper ${self.name}: sent teslaData ${JSON.stringify(teslaData)}`);
-
-		})
-		.catch(err => {
-			console.error(`node_helper ${self.name}: request for chargeState returned error  ${err}`);
-			self.sendSocketNotification("PVERROR", err);
 		});
 	},
 });
