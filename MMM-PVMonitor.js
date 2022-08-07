@@ -119,7 +119,8 @@ Module.register("MMM-PVMonitor",{
 			self.updateDom(500);
 		}
 
-		if (notification === "PVERROR") {
+		if (notification === "PVERROR" ||
+			notification === "TESLAERROR") {
 			//self.powerFlow = undefined;
 			self.lastError = payload;
 			//self.timestamp = new Date();
@@ -315,8 +316,7 @@ Module.register("MMM-PVMonitor",{
 			Autarkie der letzten 30 Tage: ${autarchy} %
 		</div>
 		<div class="summary">
-			Ladestatus: ${teslaChargingState}; noch ${teslaMinutesToFullCharge} Min.<br/>
-			Stand: ${teslaTimestamp}
+			Ladestatus: ${teslaChargingState}; noch ${teslaMinutesToFullCharge} Min. (Stand: ${teslaTimestamp})
 		</div>
 		<div class="lasterror">
 			${lasterror}
