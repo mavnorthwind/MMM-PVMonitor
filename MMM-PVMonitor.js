@@ -257,6 +257,7 @@ Module.register("MMM-PVMonitor",{
 		const milesToKm = 1.609344;
 		var teslaBatteryLevel = self.teslaData ? self.teslaData.batteryLevel : "?";
 		var teslaBatteryRange = self.teslaData ? Math.round(self.teslaData.batteryRange * milesToKm) : "?";
+		var teslaEstimatedBatteryRange = self.teslaData ? Math.round(self.teslaData.estimatedBatteryRange * milesToKm) : "?";
 		var teslaTimestamp = self.teslaData ? new Date(self.teslaData.timestamp).toLocaleTimeString() : "?";
 		var teslaChargingState = self.teslaData ? self.teslaData.chargingState : "?";
 		var teslaState = self.teslaData ? self.teslaData.state : "?";
@@ -297,7 +298,7 @@ Module.register("MMM-PVMonitor",{
 				<td class="MMPV_TD">
 					<span class="${teslaChargeClass} chargeAbove teslaCharge">Charge ${teslaChargeCurrent}A/${teslaChargePower}kW</span>
 					<img src="${teslaImage}" width="96px"/>
-					<span class="teslaCharge">${teslaBatteryLevel}% / ${teslaBatteryRange}km</span>
+					<span class="teslaCharge">${teslaBatteryLevel}% / ${teslaBatteryRange}(${teslaEstimatedBatteryRange})km</span>
 				</td>
             </tr>
         </table>

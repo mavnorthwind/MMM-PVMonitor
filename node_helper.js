@@ -205,43 +205,6 @@ module.exports = NodeHelper.create({
 		self.sendSocketNotification("DIAGRAMDATA", diagramData);
 	},
 	
-	// fetchTeslaState: function() {
-		// var self = this;
-
-		// var vehiclesUrl = "https://owner-api.teslamotors.com/api/1/vehicles";
-		// var oauthBearer = self.config.teslaOAuthToken;
-		// var vehicleId = self.config.teslaVehicleId;
-
-		// var state = "undefined";
-		
-		// axios.get(vehiclesUrl, {
-			// params: {
-				// format: "application/json"
-			// },
-			// headers: {
-				// "Authorization": oauthBearer
-			// }})
-		// .then(res => {
-			// console.log(`node_helper ${self.name}: got vehicle data: ${JSON.stringify(res.data)}`);
-
-			// var reply = res.data;
-			// for (var vehicle of reply.response) {
-				// if (vehicle.id == vehicleId)
-				// {
-					// state = vehicle.state;
-				// }
-			// }
-			// return state;
-		// })
-		// .catch(err => {
-			// console.error(`node_helper ${self.name}: request for vehicleData returned error  ${err}`);
-			// state = err;
-			// return state;
-		// });
-		
-// //		return state;
-	// },
-	
 	fetchTeslaCharge: function() {
 		var self = this;
 
@@ -250,7 +213,7 @@ module.exports = NodeHelper.create({
 			return;
 		}
 
-		var proc = spawn('/home/pi/tmp/tesla/bin/Debug/net5.0/QueryTesla', [], { cwd: '/home/pi/tmp/tesla/bin/Debug/net5.0' });
+		var proc = spawn('/home/pi/tmp/tesla/bin/Debug/net5.0/QueryTesla', ['-getCharge']); //, { cwd: '/home/pi/tmp/tesla/bin/Debug/net5.0' });
 		var out = "";
 		var err = "";
 		proc.stdout.on('data', function(data) { out += data; });
