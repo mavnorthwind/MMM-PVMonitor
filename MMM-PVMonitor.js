@@ -274,7 +274,7 @@ Module.register("MMM-PVMonitor",{
                     <span class="${flowPV2LOAD} overlayRight"><img src="${arrowRightDownImage}" /></span>
                     <img src="${pvImage}" />
                 </td>
-                <td class="MMPV_TD" rowspan="2"><img src="${loadImage}" /></td>
+                <td class="MMPV_TD"><img src="${loadImage}" /></td>
                 <td class="MMPV_TD" rowspan="2">
                     <span class="${flowGRID2LOAD} overlayLeft"><img src="${arrowLeftImage}" /></span>
                     <span class="${flowLOAD2GRID} overlayLeft"><img src="${arrowRightImage}" /></span>
@@ -289,6 +289,10 @@ Module.register("MMM-PVMonitor",{
 					<div class="percentage">${storageCharge} %</div>
 					<div class="storagePower">${storagePower}</div>
                 </td>
+				<td class="MMPV_TD">
+					<img src="images/Tesla_Model3_red.svg" />
+					${teslaBatteryLevel}% / ${teslaBatteryRange}km
+				</td>
             </tr>
         </table>
 		<div id="diagram" class="diagram">
