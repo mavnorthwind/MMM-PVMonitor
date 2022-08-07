@@ -16,6 +16,7 @@ module.exports = NodeHelper.create({
 	throttler: undefined,
 	teslaThrottler: undefined,
 	teslaTimer: undefined,
+	teslaData: undefined,
 	maxPower: {
 		value: 0.001,
 		timestamp: new Date()
@@ -53,6 +54,10 @@ module.exports = NodeHelper.create({
 		self.teslaThrottler = new Throttler();
 		self.teslaThrottler.minimumTimeBetweenCalls = 60*60*1000; // Once every 60 minutes
 		self.teslaThrottler.setThrottleHours(22, 6);
+		self.teslaThrottler.setOverrideThrottleCallback((t, reason) => {
+			// Don't throttle while charging
+			return (self.teslaData && self.teslaData.chargingState=="Charging");
+		});
 		self.teslaThrottler.logThrottlingConditions();
 	},
 	
@@ -84,7 +89,7 @@ module.exports = NodeHelper.create({
 
 				self.teslaTimer = setInterval(function() {
 					self.teslaThrottler.execute(() => self.fetchTeslaCharge(), (r) => console.log("TeslaCharge update throttled:"+r));
-				}, 30*60*1000);
+				}, 5*60*1000);
 
 				// run request 1st time
 				self.fetchSiteDetails();
@@ -256,6 +261,7 @@ module.exports = NodeHelper.create({
 				console.log(`node_helper ${self.name}: sent error occurred during Tesla query: ${err}`);
 			} else {
 				var teslaData = JSON.parse(out);
+				self.teslaData = teslaData;
 				self.sendSocketNotification("TESLA", teslaData);
 				console.log(`node_helper ${self.name}: sent teslaData ${JSON.stringify(teslaData)}`);
 			}
