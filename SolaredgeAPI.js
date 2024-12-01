@@ -72,6 +72,7 @@ class SolaredgeAPI {
 			};
 		} catch(error) {
 			console.error(`Request for powerflow on ${this.#siteId} returned error  ${error}`);
+			throw error;
 		}
     }
 
@@ -125,6 +126,7 @@ class SolaredgeAPI {
 			 return currentPowerflow;
 		} catch (error) {
 			console.error(`Request for powerflow returned error  ${error}`);
+			throw error;
 		}
     }
 
@@ -177,6 +179,7 @@ class SolaredgeAPI {
 			return productionReply;
 		} catch(error) {
 			console.error(`Request for energy returned error  ${error}`);
+			throw error;
 		};
 	}
 
@@ -230,6 +233,7 @@ class SolaredgeAPI {
 			return autarchy;
 		} catch(error) {
 			console.error(`Request for energyDetails returned error  ${error}`);
+			throw error;
 		}
 	}
 
@@ -318,6 +322,7 @@ class SolaredgeAPI {
 			return diagramReply;
 		} catch(error) {
 			console.error(`Request for inverterData returned error  ${error}`);
+			throw error;
 		}
 	}
 }
