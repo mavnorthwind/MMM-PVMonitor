@@ -1,9 +1,19 @@
 const axios = require("axios");
+// Take environment from file .env.local (not inside the repo)
+const dotenv = require('dotenv').config({path: '.env.local'});
+
+function getEnvVar(varName) {
+    const value = process.env[varName];
+    if (!value) {
+        throw new Error(`Environment variable ${varName} is not set!`);
+    }
+    return value;
+}
 
 var config = {
-    siteId: "InsertSiteID",
-    inverterId: "InsertConverterID",
-    apiKey: "InsertApiKey"
+    siteId: getEnvVar("SOLAREDGE_SITEID"),
+    inverterId: getEnvVar("SOLAREDGE_INVERTERID"),
+    apiKey: getEnvVar("SOLAREDGE_APIKEY")
 };
 
 function formatDateTimeForAPI(date) {
