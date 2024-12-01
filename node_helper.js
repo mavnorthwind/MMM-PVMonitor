@@ -213,7 +213,7 @@ module.exports = NodeHelper.create({
 			return;
 		}
 
-		var proc = spawn('/home/pi/tmp/tesla/bin/Debug/net5.0/QueryTesla', ['-getCharge']); //, { cwd: '/home/pi/tmp/tesla/bin/Debug/net5.0' });
+		var proc = spawn('/home/pi/tmp/tesla/bin/Debug/net8.0/QueryTesla', ['-getCharge']); //, { cwd: '/home/pi/tmp/tesla/bin/Debug/publish' });
 		var out = "";
 		var err = "";
 		proc.stdout.on('data', function(data) { out += data; });
