@@ -91,13 +91,17 @@ module.exports = NodeHelper.create({
 					self.teslaThrottler.execute(() => self.fetchTeslaCharge(), (r) => console.log("TeslaCharge update throttled:"+r));
 				}, 5*60*1000);
 
+				setInterval(function() {
+					self.fetchSpotPrice();
+				}, 30*60*1000);
+
 				// run request 1st time
 				self.fetchSiteDetails();
 				self.throttler.forceExecute(() => self.fetchPowerFlow());
 				self.fetchProduction();
 				self.fetchEnergyDetails();
 				self.fetchDiagramData();
-				
+				self.fetchSpotPrice();
 				self.teslaThrottler.forceExecute(() => self.fetchTeslaCharge());
 				break;
 			case "USER_PRESENCE":
@@ -229,5 +233,31 @@ module.exports = NodeHelper.create({
 				console.log(`node_helper ${self.name}: sent teslaData ${JSON.stringify(teslaData)}`);
 			}
 		});
+	},
+	
+	fetchSpotPrice: async function() {
+		var self = this;
+		
+		const spotPriceStatusUrl = "https://spotpreise.info/api/status.json";
+
+		try {
+			const res = await axios.get(spotPriceStatusUrl, {
+				params: {
+					format: "application/json"
+				}});
+
+			console.debug(`Got spotPriceStatus: ${JSON.stringify(res.data)}`);
+
+			self.sendSocketNotification("SPOTPRICE", res.data);
+			// return {
+				// currentSpotPrice: res.data.currentSpotPrice, // 6.2,
+				// priceUnit: res.data.priceUnit, // "ct/kWh",
+				// lastUpdate: res.data.lastUpdate // "2025-07-04T15:00:10.835Z"
+			// };
+
+		} catch(error) {
+			console.error(`Request for spotPriceStatus on ${spotPriceStatusUrl} returned error  ${error}`);
+			throw error;
+		}
 	},
 });

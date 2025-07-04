@@ -38,6 +38,9 @@ Module.register("MMM-PVMonitor",{
 	
 	// Tesla data
 	teslaData: undefined,
+	
+	// SpotPrice
+	spotPrice: undefined,
 
 	start: function() {
 
@@ -112,6 +115,11 @@ Module.register("MMM-PVMonitor",{
 		if (notification === "TESLA") {
 			//console.log("TESLA Data received: "+JSON.stringify(payload));
 			self.teslaData = payload;
+			self.updateDom(0);
+		}
+		
+		if (notification === "SPOTPRICE") {
+			self.spotPrice = payload;
 			self.updateDom(0);
 		}
 		
@@ -267,6 +275,9 @@ Module.register("MMM-PVMonitor",{
 		var lasterror = self.lastError ? self.lastError.message : "";
 		var teslaChargeClass = self.teslaData ? (self.teslaData.chargingState=="Charging" ? "" : "off") : "off";
 		
+		var spotPriceUpdate = new Date(self.spotPrice.lastUpdate).toLocaleTimeString();
+		var spotPriceText = `${self.spotPrice.currentSpotPrice} ${self.spotPrice.priceUnit} (${spotPriceUpdate})`;
+		
 		var template = 
 		`<table>
             <tr>
@@ -285,6 +296,7 @@ Module.register("MMM-PVMonitor",{
                     <span class="${flowGRID2LOAD} overlayLeft"><img src="${arrowLeftImage}" /></span>
                     <span class="${flowLOAD2GRID} overlayLeft"><img src="${arrowRightImage}" /></span>
                     <img src="${gridImage}" />
+					<span class="spotPrice">${spotPriceText}</span>
                 </td>
             </tr>
             <tr>

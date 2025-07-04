@@ -31,6 +31,15 @@
     transform: translate(-50%,-50%);
 }
 
+.spotPrice {
+	position: absolute;
+	font-size: small;
+	text-align: center;
+	left: 0%;
+	width: 100%;
+	top: 70%;
+}
+
 .percentage {
     font-size: xx-small;
     position: relative;
