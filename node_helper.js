@@ -217,7 +217,7 @@ module.exports = NodeHelper.create({
 			return;
 		}
 
-		var proc = spawn('/home/pi/tmp/tesla/bin/Debug/net8.0/QueryTesla', ['-getCharge']); //, { cwd: '/home/pi/tmp/tesla/bin/Debug/publish' });
+		var proc = spawn('~/tesla/QueryTesla', ['-getCharge']); // create a symbolic link in ~/tesla to the output folder from the QueryTesla project!
 		var out = "";
 		var err = "";
 		proc.stdout.on('data', function(data) { out += data; });
@@ -237,6 +237,7 @@ module.exports = NodeHelper.create({
 	
 	fetchSpotPrice: async function() {
 		var self = this;
+		console.debug(`node_helper ${self.name}: fetchSpotPrice()`);
 		
 		const spotPriceStatusUrl = "https://spotpreise.info/api/status.json";
 
