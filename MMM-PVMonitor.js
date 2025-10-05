@@ -39,6 +39,10 @@ Module.register("MMM-PVMonitor",{
 	// Tesla data
 	teslaData: undefined,
 
+	// SpotPrice
+	spotPrice: undefined,
+
+
 	start: function() {
 
 		// var config = {
@@ -114,7 +118,12 @@ Module.register("MMM-PVMonitor",{
 			self.teslaData = payload;
 			self.updateDom(0);
 		}
-		
+				
+		if (notification === "SPOTPRICE") {
+			self.spotPrice = payload;
+			self.updateDom(0);
+		}
+
 		if (notification === "USER_RESENCE" && payload == true) {
 			self.updateDom(500);
 		}
@@ -266,7 +275,17 @@ Module.register("MMM-PVMonitor",{
 		var teslaChargeCurrent = self.teslaData ? self.teslaData.chargerActualCurrent : 0;
 		var lasterror = self.lastError ? self.lastError.message : "";
 		var teslaChargeClass = self.teslaData ? (self.teslaData.chargingState=="Charging" ? "" : "off") : "off";
-		
+
+		// Format Spot Prices
+		var spotPriceText = "UNKNOWN";
+		try{
+			spotPriceText = `${self.spotPrice.currentSpotPrice} ${self.spotPrice.priceUnit} (${new Date(self.spotPrice.lastUpdate).toLocaleTimeString()})`;
+		} catch (err) {
+			console.error("Error updating spot price:",err);
+			spotPriceText = err;
+		}
+
+
 		var template = 
 		`<table>
             <tr>
@@ -285,6 +304,7 @@ Module.register("MMM-PVMonitor",{
                     <span class="${flowGRID2LOAD} overlayLeft"><img src="${arrowLeftImage}" /></span>
                     <span class="${flowLOAD2GRID} overlayLeft"><img src="${arrowRightImage}" /></span>
                     <img src="${gridImage}" />
+					<span class="spotPrice">${spotPriceText}</span>
                 </td>
             </tr>
             <tr>

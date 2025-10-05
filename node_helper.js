@@ -239,17 +239,22 @@ module.exports = NodeHelper.create({
 		var self = this;
 		console.debug(`node_helper ${self.name}: fetchSpotPrice()`);
 		
+		// does not work anymore
 		const spotPriceStatusUrl = "https://spotpreise.info/api/status.json";
 
 		try {
-			const res = await axios.get(spotPriceStatusUrl, {
-				params: {
-					format: "application/json"
-				}});
+			// const res = await axios.get(spotPriceStatusUrl, {
+			// 	params: {
+			// 		format: "application/json"
+			// 	}});
 
-			console.debug(`Got spotPriceStatus: ${JSON.stringify(res.data)}`);
+			// console.debug(`Got spotPriceStatus: ${JSON.stringify(res.data)}`);
 
-			self.sendSocketNotification("SPOTPRICE", res.data);
+			self.sendSocketNotification("SPOTPRICE", {
+				currentSpotPrice: 99.9,
+				priceUnit: "ct/kWh",
+				lastUpdate: new Date()
+			});
 			// return {
 				// currentSpotPrice: res.data.currentSpotPrice, // 6.2,
 				// priceUnit: res.data.priceUnit, // "ct/kWh",
