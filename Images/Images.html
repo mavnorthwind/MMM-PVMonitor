@@ -12,16 +12,21 @@
     <h3>Loaded dynamically</h3>
     <p>
         <!-- <div id="batteryContainer" data-src="Battery.svg">Loading...</div> -->
-         <object id="batteryObject"
+         <object id="batteryObj"
                  data="Battery.svg"
                  type="image/svg+xml"
                  style="width: 120px; height: 50px;"></object>
     </p>
-    <button onclick="updateBattery(10)">10%</button>
-    <button onclick="updateBattery(20)">20%</button>
-    <button onclick="updateBattery(40)">40%</button>
-    <button onclick="updateBattery(75)">75%</button>
-    <button onclick="updateBattery(100)">100%</button>
+    <p>
+        <button onclick="updateBattery(10)">10%</button>
+        <button onclick="updateBattery(20)">20%</button>
+        <button onclick="updateBattery(40)">40%</button>
+        <button onclick="updateBattery(75)">75%</button>
+        <button onclick="updateBattery(100)">100%</button>
+    </p>
+    <p>
+        <button onclick="toggleDir()">Toggle direction</button>
+    </p>
     <script>
 
         // async function loadSvg(container) {
@@ -41,14 +46,25 @@
         //     return el;
         // };
 
-        function updateBattery(p) {
-            const svgDoc = document.getElementById('batteryObject').contentDocument;
-            const svg = svgDoc.getElementById('battery');
-
-            svg.updateFill(p);
+        function toggleDir() {
+            const obj = document.getElementById("batteryObj");
+            const svgDoc = obj.getSVGDocument();
+            const svg = svgDoc.getElementById("socSvg");
+            var dir = svg.getAttribute("data-direction");
+            if (dir == "ltr")
+                svg.setAttribute("data-direction", "rtl");
+            else
+                svg.setAttribute("data-direction", "ltr");
         }
 
-        document.getElementById('batteryObject').addEventListener('load', () => {
+        function updateBattery(p) {
+            const obj = document.getElementById("batteryObj");
+            const svgDoc = obj.getSVGDocument();
+            const svg = svgDoc.getElementById("socSvg");
+            svg.setAttribute("data-fill", p);
+        }
+
+        document.getElementById('batteryObj').addEventListener('load', () => {
             updateBattery(35);
         });
     </script>

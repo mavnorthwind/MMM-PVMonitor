@@ -1,87 +1,216 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="60" height="25" viewBox="0 0 60 25"
+     data-fill="35" data-direction="ltr" id="socSvg" >
+  <!-- background rounded bar -->
+  <rect x="0" y="0" width="60" height="25" rx="3" ry="3" fill="#ddd"/>
 
-<svg xmlns="http://www.w3.org/2000/svg"
-     id="battery"
-     viewBox="0 0 60 32"
-     version="1.1"
-     role="img"
-     aria-label="Battery symbol"
-     data-fill="40"> 
-    <defs>
-        <!-- Shared gradients -->
-        <!-- move to local html file! -->
-        <!--
-        <linearGradient id="charging" x1="0%" y1="0%" x2="100%" y2="0%" spreadMethod="repeat">
-            <stop offset="20%" stop-color="#040"/>
-            <stop offset="50%" stop-color="#080"/>
-            <stop offset="80%" stop-color="#040"/>
-            <animate attributeName="x1" dur="2000ms" from="-100%" to="100%" repeatCount="indefinite"/>
-            <animate attributeName="x2" dur="2000ms" from="0%" to="200%" repeatCount="indefinite"/>
-        </linearGradient>
+  <defs>
+    <!-- clip that will be updated to match the filled shape (left rounded + square right) -->
+    <clipPath id="fillClip">
+      <!-- left rounded cap (will be resized) -->
+      <rect id="clipLeft" x="0" y="0" width="6" height="25" rx="3" ry="3"/>
+      <!-- body (will be resized and moved when needed) -->
+      <rect id="clipBody" x="3" y="0" width="0" height="25"/>
+    </clipPath>
 
-        <linearGradient id="discharging" x1="0%" y1="0%" x2="100%" y2="0%" spreadMethod="repeat">
-            <stop offset="20%" stop-color="#040"/>
-            <stop offset="50%" stop-color="#080"/>
-            <stop offset="80%" stop-color="#040"/>
-            <animate attributeName="x1" dur="2000ms" from="100%" to="-100%" repeatCount="indefinite"/>
-            <animate attributeName="x2" dur="2000ms" from="200%" to="0%" repeatCount="indefinite"/>
-        </linearGradient>
-        -->
-    </defs>
+    <!-- animated gradient (colors will be updated by script) -->
+    <linearGradient id="animGradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="40" y2="0">
+      <stop offset="0%"   stop-color="rgba(255,255,255,0)" stop-opacity="0.0"/>
+      <stop offset="25%"  stop-color="rgba(255,255,255,0)" stop-opacity="0.0"/>
+      <stop offset="50%"  stop-color="rgba(255,255,255,0)" stop-opacity="0.0"/>
+      <stop offset="75%"  stop-color="rgba(255,255,255,0)" stop-opacity="0.0"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)" stop-opacity="0.0"/>
+    </linearGradient>
+  </defs>
 
-    <!-- Shape of a battery -->
-    <rect id="SoC" fill="purple" x="3" y="3" width="50" height="26"></rect>
-    <polygon id="Contact" fill="#666666" points="55 24 55 8 60 12 60 20"></polygon>
-    <path id="Outline" fill="#666666" d="M54,4 L54,28 C54,29.1 53.1,30 52,30 L4,30 C2.9,30 2,29.1 2,28 L2,4 C2,2.9 2.9,2 4,2 L52,2 C53.1,2 54,2.9 54,4 Z M4,0 C1.8,0 0,1.8 0,4 L0,28 C0,30.2 1.8,32 4,32 L52,32 C54.2,32 56,30.2 56,28 L56,4 C56,1.8 54.2,0 52,0 L4,0 Z"></path>
+  <!-- base solid fill (full-size rect, clipped by `fillClip` to show only the filled width) -->
+  <g id="baseFillGroup" clip-path="url(#fillClip)">
+    <rect id="baseFillRect" x="0" y="0" width="60" height="25" fill="red"/>
+  </g>
 
+  <!-- animated gradient overlay, clipped to same shape so it only shows on the filled portion -->
+  <!-- animRect is larger than the bar so the gradient can slide across -->
+  <rect id="animRect" x="-60" y="0" width="180" height="25" fill="url(#animGradient)" clip-path="url(#fillClip)" opacity="0.85"/>
 
-    <!-- embedded script to calculate the color and width of SoC by data-fill attribute-->
-    <script type="application/ecmascript">
-    <![CDATA[
-        (function() {
-            var svg = document.currentScript.ownerSVGElement;
-            var fillRect = svg.getElementById('SoC');
-            var totalWidth = parseFloat(fillRect.getAttribute('width') || 20);
+  <script type="application/ecmascript"><![CDATA[
+  (function () {
+    var SVG_NS = "http://www.w3.org/2000/svg";
+    var svg = document.getElementById('socSvg');
 
-            // Interpolate color between stops
-            function getColor(percent) {
-                // Stops: 0%-10% red, 20% yellow, 50%-100% green
-                var stops = [
-                    { pct: 0, color: [255,0,0] },
-                    { pct: 10, color: [255,0,0] },
-                    { pct: 20, color: [192,192,0] },
-                    { pct: 50, color: [0,192,0] },
-                    { pct: 100, color: [0,192,0] }
-                ];
-                var lower = stops[0], upper = stops[stops.length-1];
-                for(var i=0; i < stops.length-1; i++) {
-                    if(percent >= stops[i].pct && percent <= stops[i+1].pct) {
-                        lower = stops[i];
-                        upper = stops[i+1];
-                        break;
-                    }
-                }
-                var t = (percent - lower.pct)/(upper.pct - lower.pct);
-                var r = Math.round(lower.color[0] + t*(upper.color[0]-lower.color[0]));
-                var g = Math.round(lower.color[1] + t*(upper.color[1]-lower.color[1]));
-                var b = Math.round(lower.color[2] + t*(upper.color[2]-lower.color[2]));
+    // Elements to update
+    var totalWidth = parseFloat(svg.getAttribute('width')) || 60;
+    var height = parseFloat(svg.getAttribute('height')) || 25;
+    var maxRadius = 3;                  // left corner radius
+    var clipLeft = svg.getElementById('clipLeft');
+    var clipBody = svg.getElementById('clipBody');
+    var baseFillRect = svg.getElementById('baseFillRect');
+    var animGradient = svg.getElementById('animGradient');
+    var animRect = svg.getElementById('animRect');
 
-                return 'rgb('+r+','+g+','+b+')';
-            }
+    // Helper: clamp
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
-            // Function to update fill dynamically
-            svg.updateFill = function(percent) {
-                percent = Math.max(0, Math.min(100, percent));
-                var fillWidth = totalWidth * percent / 100;
-                fillRect.setAttribute('width', fillWidth);
-                fillRect.setAttribute('fill', getColor(percent));
-                svg.setAttribute('data-fill', percent); // optional, update attribute
-            };
+    // Helper: compute base color according to stops:
+    // 0% -> red (255,0,0)
+    // 10% -> red (255,0,0)
+    // 20% -> yellow (255,255,0)
+    // 50% -> green (0,192,0)
+    // 100% -> green (0,192,0)
+    var stops = [
+      { pct: 0,   color: [255,0,0]   },
+      { pct: 10,  color: [255,0,0]   },
+      { pct: 20,  color: [192,192,0] },
+      { pct: 50,  color: [0,192,0]   },
+      { pct: 100, color: [0,192,0]   }
+    ];
+    function getBaseRGB(p) {
+      p = clamp(p, 0, 100);
+      var lower = stops[0], upper = stops[stops.length-1];
+      for (var i = 0; i < stops.length - 1; i++) {
+        if (p >= stops[i].pct && p <= stops[i+1].pct) {
+          lower = stops[i];
+          upper = stops[i+1];
+          break;
+        }
+      }
+      var range = upper.pct - lower.pct;
+      var t = range === 0 ? 0 : (p - lower.pct) / range;
+      var r = Math.round(lower.color[0] + t * (upper.color[0] - lower.color[0]));
+      var g = Math.round(lower.color[1] + t * (upper.color[1] - lower.color[1]));
+      var b = Math.round(lower.color[2] + t * (upper.color[2] - lower.color[2]));
+      return [r,g,b];
+    }
+    function rgbToCss(rgb) { return 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')'; }
 
-            // Initialize
-            svg.updateFill(parseFloat(svg.getAttribute('data-fill') || 0));
-        })();
-    ]]>
-    </script>
+    // Make a lighter variant by mixing toward white
+    function lighten(rgb, factor) {
+      return [
+        Math.round(rgb[0] + (255 - rgb[0]) * factor),
+        Math.round(rgb[1] + (255 - rgb[1]) * factor),
+        Math.round(rgb[2] + (255 - rgb[2]) * factor)
+      ];
+    }
 
+    // Update function: apply fill width, base color and animated gradient
+    function updateFromAttributes() {
+      var pct = parseFloat(svg.getAttribute('data-fill'));
+      if (isNaN(pct)) pct = 0;
+      pct = clamp(pct, 0, 100);
+
+      var direction = (svg.getAttribute('data-direction') || 'ltr').toLowerCase();
+      if (direction !== 'rtl') direction = 'ltr';
+
+      var fillW = totalWidth * pct / 100;
+
+      // Update clipping shapes to produce left-round + right-square
+      if (fillW <= 0.0001) {
+        // empty
+        clipLeft.setAttribute('width', 0);
+        clipLeft.setAttribute('rx', 0);
+        clipBody.setAttribute('width', 0);
+        baseFillRect.setAttribute('display', 'none');
+        animRect.setAttribute('display', 'none');
+        return;
+      } else {
+        baseFillRect.removeAttribute('display');
+        animRect.removeAttribute('display');
+      }
+
+      if (fillW <= maxRadius) {
+        // Very small fill: draw only a single rounded rect (no body)
+        clipLeft.setAttribute('width', fillW);
+        clipLeft.setAttribute('rx', Math.max(0, fillW/2));
+        clipBody.setAttribute('width', 0);
+      } else {
+        // Normal case: left cap (width 2*maxRadius, rx=maxRadius), body to fill the rest
+        clipLeft.setAttribute('width', Math.min(2*maxRadius, fillW));
+        clipLeft.setAttribute('rx', maxRadius);
+        var bodyX = Math.min(maxRadius, fillW); // position where the 'square' body begins
+        var bodyWidth = Math.max(0, fillW - bodyX);
+        clipBody.setAttribute('x', bodyX);
+        clipBody.setAttribute('width', bodyWidth);
+      }
+
+      // Base fill color:
+      var baseRgb = getBaseRGB(pct);
+      baseFillRect.setAttribute('fill', rgbToCss(baseRgb));
+
+      // Build animated gradient stops using base color and a lighter highlight
+      var lighter = lighten(baseRgb, 0.55);
+      // Build innerHTML of animGradient safely (SVG elements)
+      while (animGradient.firstChild) animGradient.removeChild(animGradient.firstChild);
+
+      var offsets = [0, 25, 50, 75, 100];
+      var colors = [
+        rgbToCss(baseRgb),
+        rgbToCss(lighter),
+        rgbToCss(baseRgb),
+        rgbToCss(lighter),
+        rgbToCss(baseRgb)
+      ];
+      for (var i = 0; i < offsets.length; i++) {
+        var s = document.createElementNS(SVG_NS, 'stop');
+        s.setAttribute('offset', offsets[i] + '%');
+        s.setAttribute('stop-color', colors[i]);
+        animGradient.appendChild(s);
+      }
+
+      // Animate the gradient horizontally.
+      // Remove any existing animateTransform and create a new one so we can change direction on the fly.
+      var existing = animGradient.querySelector('animateTransform');
+      if (existing) animGradient.removeChild(existing);
+
+      // distance to translate: make it cover a bit more than the svg width for a smooth loop
+      var shift = Math.max(40, totalWidth);
+      // direction: ltr = left→right (from -shift to +shift), rtl = right→left (from +shift to -shift)
+      var fromVal = (direction === 'rtl' ? shift : -shift) + " 0";
+      var toVal   = (direction === 'rtl' ? -shift : shift) + " 0";
+
+      var anim = document.createElementNS(SVG_NS, 'animateTransform');
+      anim.setAttribute('attributeName', 'gradientTransform');
+      anim.setAttribute('type', 'translate');
+      anim.setAttribute('from', fromVal);
+      anim.setAttribute('to', toVal);
+      anim.setAttribute('dur', svg.getAttribute('data-speed') || '1.8s');
+      anim.setAttribute('repeatCount', 'indefinite');
+      anim.setAttribute('additive', 'replace');
+      animGradient.appendChild(anim);
+
+      // Ensure animRect covers area so gradient can slide across the clip region
+      animRect.setAttribute('x', -shift);
+      animRect.setAttribute('width', totalWidth + 2*shift);
+
+      // Ensure the gradient's x2 equals the pattern width to make a repeating feel
+      animGradient.setAttribute('x2', shift);
+
+      // Setting the attribute in the MutationObserver is a BAD IDEA: Endless loop
+      // Also update data-fill attribute to exact clamped numeric (keeps the attribute readable)
+      // svg.setAttribute('data-fill', String(Math.round(pct*100)/100));
+    }
+
+    // Initialize
+    updateFromAttributes();
+
+    // Public method: svg.updateFill(percent)
+    svg.updateFill = function (v) {
+      svg.setAttribute('data-fill', String(v));
+      // updateFromAttributes will be called by the MutationObserver below
+    };
+
+    // MutationObserver to watch data-fill and data-direction changes and react automatically
+    var mo = new MutationObserver(function (mutations) {
+      var shouldUpdate = false;
+      mutations.forEach(function (m) {
+        if (m.type === 'attributes' && (m.attributeName === 'data-fill' || m.attributeName === 'data-direction' || m.attributeName === 'data-speed')) {
+          shouldUpdate = true;
+        }
+      });
+      if (shouldUpdate) updateFromAttributes();
+    });
+    mo.observe(svg, { attributes: true, attributeFilter: ['data-fill','data-direction','data-speed'] });
+
+    // Safety: expose a disconnect function if needed
+    svg._soc_cleanup = function () { mo.disconnect(); };
+
+  })();
+  ]]></script>
 </svg>
