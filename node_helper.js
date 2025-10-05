@@ -93,7 +93,7 @@ module.exports = NodeHelper.create({
 
 				setInterval(function() {
 					self.fetchSpotPrice();
-				}, 30*60*1000);
+				}, 15*60*1000); // Update spot prices each 15 minutes
 
 				// run request 1st time
 				self.fetchSiteDetails();
@@ -211,50 +211,78 @@ module.exports = NodeHelper.create({
 	
 	fetchTeslaCharge: function() {
 		var self = this;
-
-		if (!self.config){
-			console.error(`node_helper ${self.name}:Configuration has not been set!`);
-			return;
-		}
-
-		var proc = spawn('~/tesla/QueryTesla', ['-getCharge']); // create a symbolic link in ~/tesla to the output folder from the QueryTesla project!
-		var out = "";
-		var err = "";
-		proc.stdout.on('data', function(data) { out += data; });
-		proc.stderr.on('data', function(data) { console.error(data); err += data; });
-		proc.on('exit', function() {
-			if (err != "") {
-				self.sendSocketNotification("TESLAERROR", err);
-				console.log(`node_helper ${self.name}: sent error occurred during Tesla query: ${err}`);
-			} else {
-				var teslaData = JSON.parse(out);
-				self.teslaData = teslaData;
-				self.sendSocketNotification("TESLA", teslaData);
-				console.log(`node_helper ${self.name}: sent teslaData ${JSON.stringify(teslaData)}`);
+		
+		try{
+			if (!self.config){
+				console.error(`node_helper ${self.name}:Configuration has not been set!`);
+				return;
 			}
-		});
+
+			var proc = spawn('/home/mav/tesla/QueryTesla', ['-getCharge']); // create a symbolic link in ~/tesla to the output folder from the QueryTesla project!
+			var out = "";
+			var err = "";
+			proc.stdout.on('data', function(data) { out += data; });
+			proc.stderr.on('data', function(data) { console.error(data); err += data; });
+			proc.on('exit', function() {
+				if (err != "") {
+					self.sendSocketNotification("TESLAERROR", err);
+					console.log(`node_helper ${self.name}: sent error occurred during Tesla query: ${err}`);
+				} else {
+					var teslaData = JSON.parse(out);
+					self.teslaData = teslaData;
+					self.sendSocketNotification("TESLA", teslaData);
+					console.log(`node_helper ${self.name}: sent teslaData ${JSON.stringify(teslaData)}`);
+				}
+			});
+		} catch (err) {
+			console.error("Error fetching Tesla charge status:", err);
+		}
 	},
 	
 	fetchSpotPrice: async function() {
 		var self = this;
-		console.debug(`node_helper ${self.name}: fetchSpotPrice()`);
-		
-		// does not work anymore
-		const spotPriceStatusUrl = "https://spotpreise.info/api/status.json";
+		console.log(`node_helper ${self.name}: fetchSpotPrice()`);
 
 		try {
-			// const res = await axios.get(spotPriceStatusUrl, {
-			// 	params: {
-			// 		format: "application/json"
-			// 	}});
+			const now = new Date();
+			let start = new Date(now.setHours(now.getHours()-1)); // 1h ago
+			let end = new Date(now.setDate(now.getDate()+1));
+			end.setHours(23);
+			end.setMinutes(59);
+			end.setSeconds(59);
+			
+			const spotPriceUrl = `https://api.energy-charts.info/price?bzn=DE-LU&start=${start.toISOString()}&end=${end.toISOString()}`;
+			console.log(`Fetch spotPrices from: ${spotPriceUrl}`);
+			const res = await axios.get(spotPriceUrl);
+			console.log(`Got spotPrices: ${JSON.stringify(res.data)}`);
 
-			// console.debug(`Got spotPriceStatus: ${JSON.stringify(res.data)}`);
+			var data = res.data;
+			
+			// Find current price
+			data.price = data.price.map(p => p * 0.1); // Convert from €/MWh to ct/kWh
+
+    		const nowUnixSeconds = Math.floor(Date.now() / 1000);
+			console.log(`Now in Unix seconds: ${nowUnixSeconds}`);
+
+			let idx = -1;
+			console.log(`Searching through ${data.unix_seconds.length} prices/timestamps`);
+
+			for (let i = 0; i < data.unix_seconds.length; i++) {
+				if (data.unix_seconds[i] <= nowUnixSeconds && (idx === -1 || data.unix_seconds[i] > data.unix_seconds[idx])) {
+					idx = i;
+				}
+			}
+
+			data.unix_seconds = data.unix_seconds.map(ts => new Date(ts * 1000).toLocaleString()); // Convert from Unix Seconds to readable local time
+
+			console.log(`Found current price at ${idx}: ${data.unix_seconds[idx]} ${data.price[idx]}`);
 
 			self.sendSocketNotification("SPOTPRICE", {
-				currentSpotPrice: 99.9,
+				currentSpotPrice: data.price[idx],
 				priceUnit: "ct/kWh",
 				lastUpdate: new Date()
 			});
+			
 			// return {
 				// currentSpotPrice: res.data.currentSpotPrice, // 6.2,
 				// priceUnit: res.data.priceUnit, // "ct/kWh",
@@ -262,8 +290,8 @@ module.exports = NodeHelper.create({
 			// };
 
 		} catch(error) {
-			console.error(`Request for spotPriceStatus on ${spotPriceStatusUrl} returned error  ${error}`);
-			throw error;
+			console.error(`Request for spotPrice returned error  ${error}`);
+//			throw error;
 		}
 	},
 });
