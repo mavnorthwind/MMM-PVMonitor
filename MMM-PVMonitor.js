@@ -305,6 +305,7 @@ Module.register("MMM-PVMonitor",{
                     <span class="${flowLOAD2GRID} overlayLeft"><img src="${arrowRightImage}" /></span>
                     <img src="${gridImage}" />
 					<span class="spotPrice">${spotPriceText}</span>
+					<span class="spotPrice">${spotPriceText}</span>
                 </td>
             </tr>
             <tr>

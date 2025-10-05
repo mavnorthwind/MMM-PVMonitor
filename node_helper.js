@@ -102,6 +102,7 @@ module.exports = NodeHelper.create({
 				self.fetchEnergyDetails();
 				self.fetchDiagramData();
 				self.fetchSpotPrice();
+				self.fetchSpotPrice();
 				self.teslaThrottler.forceExecute(() => self.fetchTeslaCharge());
 				break;
 			case "USER_PRESENCE":
