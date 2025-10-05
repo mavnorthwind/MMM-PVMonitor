@@ -7,17 +7,19 @@
 
     </style>
 </head>
-<body style="background-color: black; color: white;">
+<body style="background-color: blue; color: white;">
 
-    <h3>Loaded dynamically</h3>
+    <h3>Loaded as object</h3>
     <p>
-        <!-- <div id="batteryContainer" data-src="Battery.svg">Loading...</div> -->
+        <div style="background-color: black;">
          <object id="batteryObj"
                  data="Battery.svg"
                  type="image/svg+xml"
-                 style="width: 120px; height: 50px;"></object>
+                 style="width: 120px; margin-top: 4px; margin-left: 4px;"></object>
+        </div>
     </p>
     <p>
+        <button onclick="updateBattery(0)">0%</button>
         <button onclick="updateBattery(10)">10%</button>
         <button onclick="updateBattery(20)">20%</button>
         <button onclick="updateBattery(40)">40%</button>
@@ -27,8 +29,13 @@
     <p>
         <button onclick="toggleDir()">Toggle direction</button>
     </p>
+    <p>
+        <button onclick="updateSpeed('3s')">Slow animation</button>
+        <button onclick="updateSpeed('1s')">Fast animation</button>
+    </p>
     <script>
 
+        // Not needed anymore
         // async function loadSvg(container) {
         //     const el = document.getElementById(container);
 
@@ -42,9 +49,15 @@
         //         console.error("Could not load content:", err);
         //         el.textContent = "Sorry, could not load content.";
         //     }
-
         //     return el;
         // };
+
+        function updateSpeed(spd) {
+            const obj = document.getElementById("batteryObj");
+            const svgDoc = obj.getSVGDocument();
+            const svg = svgDoc.getElementById("socSvg");
+            svg.setAttribute("data-speed", spd);
+        }
 
         function toggleDir() {
             const obj = document.getElementById("batteryObj");
@@ -65,7 +78,7 @@
         }
 
         document.getElementById('batteryObj').addEventListener('load', () => {
-            updateBattery(35);
+             updateBattery(55);
         });
     </script>
 </body>
