@@ -279,7 +279,11 @@ Module.register("MMM-PVMonitor",{
 		// Format Spot Prices
 		var spotPriceText = "UNKNOWN";
 		try{
-			spotPriceText = `${self.spotPrice.currentSpotPrice} ${self.spotPrice.priceUnit} (${new Date(self.spotPrice.lastUpdate).toLocaleTimeString()})`;
+			if (self.spotPrice) {
+				var curr = self.spotPrice.currentSpotPrice;
+				const toFixed1 = (n) => Number(n.toFixed(1));
+				spotPriceText = `${toFixed1(curr)} ${self.spotPrice.priceUnit} (${new Date(self.spotPrice.lastUpdate).toLocaleTimeString()})`;
+			}
 		} catch (err) {
 			console.error("Error updating spot price:",err);
 			spotPriceText = err;

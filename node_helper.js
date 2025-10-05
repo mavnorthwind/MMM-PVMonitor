@@ -102,7 +102,6 @@ module.exports = NodeHelper.create({
 				self.fetchEnergyDetails();
 				self.fetchDiagramData();
 				self.fetchSpotPrice();
-				self.fetchSpotPrice();
 				self.teslaThrottler.forceExecute(() => self.fetchTeslaCharge());
 				break;
 			case "USER_PRESENCE":
@@ -253,20 +252,17 @@ module.exports = NodeHelper.create({
 			end.setSeconds(59);
 			
 			const spotPriceUrl = `https://api.energy-charts.info/price?bzn=DE-LU&start=${start.toISOString()}&end=${end.toISOString()}`;
-			console.log(`Fetch spotPrices from: ${spotPriceUrl}`);
+			console.debug(`Fetch spotPrices from: ${spotPriceUrl}`);
 			const res = await axios.get(spotPriceUrl);
-			console.log(`Got spotPrices: ${JSON.stringify(res.data)}`);
-
 			var data = res.data;
 			
 			// Find current price
 			data.price = data.price.map(p => p * 0.1); // Convert from €/MWh to ct/kWh
 
     		const nowUnixSeconds = Math.floor(Date.now() / 1000);
-			console.log(`Now in Unix seconds: ${nowUnixSeconds}`);
 
 			let idx = -1;
-			console.log(`Searching through ${data.unix_seconds.length} prices/timestamps`);
+			console.debug(`Searching through ${data.unix_seconds.length} prices/timestamps`);
 
 			for (let i = 0; i < data.unix_seconds.length; i++) {
 				if (data.unix_seconds[i] <= nowUnixSeconds && (idx === -1 || data.unix_seconds[i] > data.unix_seconds[idx])) {
@@ -276,7 +272,7 @@ module.exports = NodeHelper.create({
 
 			data.unix_seconds = data.unix_seconds.map(ts => new Date(ts * 1000).toLocaleString()); // Convert from Unix Seconds to readable local time
 
-			console.log(`Found current price at ${idx}: ${data.unix_seconds[idx]} ${data.price[idx]}`);
+			console.debug(`Found current price at ${idx}: ${data.unix_seconds[idx]} ${data.price[idx]}`);
 
 			self.sendSocketNotification("SPOTPRICE", {
 				currentSpotPrice: data.price[idx],
@@ -292,7 +288,6 @@ module.exports = NodeHelper.create({
 
 		} catch(error) {
 			console.error(`Request for spotPrice returned error  ${error}`);
-//			throw error;
 		}
 	},
 });
