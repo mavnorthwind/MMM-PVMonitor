@@ -245,8 +245,8 @@ module.exports = NodeHelper.create({
 
 		try {
 			const now = new Date();
-			let start = new Date(now.setHours(now.getHours()-1)); // 1h ago
-			let end = new Date(now.setDate(now.getDate()+1));
+			let start = new Date(now.setDate(now.getDate()-1)); // 1day ago
+			let end = new Date(now.setDate(now.getDate()+1)); // tomorrow at midnight
 			end.setHours(23);
 			end.setMinutes(59);
 			end.setSeconds(59);
@@ -277,7 +277,8 @@ module.exports = NodeHelper.create({
 			self.sendSocketNotification("SPOTPRICE", {
 				currentSpotPrice: data.price[idx],
 				priceUnit: "ct/kWh",
-				lastUpdate: new Date()
+				lastUpdate: new Date(),
+				prices: data
 			});
 			
 			// return {

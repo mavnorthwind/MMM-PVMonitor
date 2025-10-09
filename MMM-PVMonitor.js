@@ -121,6 +121,8 @@ Module.register("MMM-PVMonitor",{
 				
 		if (notification === "SPOTPRICE") {
 			self.spotPrice = payload;
+			console.log("SPOTPRICE:", self.spotPrice);
+
 			self.updateDom(0);
 		}
 
@@ -391,7 +393,7 @@ Module.register("MMM-PVMonitor",{
 				name: "SoC",
 				fill: 'tozeroy',
 				line: {
-				  color: "1F77B4",
+				  color: "#1F77B4",
 				  shape: "spline"
 				}
 			  };
@@ -408,8 +410,21 @@ Module.register("MMM-PVMonitor",{
 				},
 				yaxis: "y2"
 			  };
-			  
-			  var data = [storage, temp];
+
+			  var spotprices = {
+				x: self.spotPrice ? self.spotPrice.unix_seconds : [0, 1],
+				y: self.spotPrice ? self.spotPrice.price : [10,12],
+				type: 'scatter',
+				name: "Preis",
+				mode: "lines",
+				line: {
+					color: '#0a0',
+					width: 2,
+					shape: "spline"
+				}
+			  };
+
+			  var data = [storage, temp, spotprices];
 			  
 			  var layout = {
 				plot_bgcolor:"#111",
