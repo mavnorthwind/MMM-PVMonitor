@@ -7,6 +7,7 @@ const axios = require('axios');
 const Throttler = require("./Throttler.js");
 const fs = require('fs');
 const SolaredgeAPI = require("./SolaredgeAPI.js");
+const SpotPrices = require("./SpotPrices.js");
 const spawn = require('child_process').spawn;
 
 module.exports = NodeHelper.create({
@@ -28,6 +29,7 @@ module.exports = NodeHelper.create({
 	},
 	timerDiagram: undefined,
 	solarEdgeApi: undefined,
+	spotPrices: undefined,
 
 
 	start: function() {
@@ -61,7 +63,7 @@ module.exports = NodeHelper.create({
 		self.teslaThrottler.logThrottlingConditions();
 	},
 	
-	socketNotificationReceived: function(notification, payload)	{
+	socketNotificationReceived: async function(notification, payload)	{
 		var self = this;
 
 		switch (notification) {
@@ -69,6 +71,10 @@ module.exports = NodeHelper.create({
 				self.config = payload;
 				
 				self.solarEdgeApi = new SolaredgeAPI(self.config.siteId, self.config.apiKey, self.config.inverterId);
+
+				self.spotPrices = new SpotPrices();
+				if (!self.spotPrices.hasPrices)
+					await self.spotPrices.updateSpotPrices();
 
 				if (self.timer)
 					clearInterval(self.timer);
@@ -111,31 +117,6 @@ module.exports = NodeHelper.create({
 				break;
 		}
 	},
-
-	// findProductionForDay: function(day, values) {
-	// 	var prod = 0;
-
-	// 	values.forEach(v => {
-	// 		if (v.date.indexOf(day) >= 0)
-	// 			prod = v.value;
-	// 	});
-
-	// 	return prod;
-	// },
-
-	// sumValuesFor: function(meter, meters) {
-	// 	var res = 0;
-	// 	for (var m=0; m<meters.length; m++){
-	// 		if (meters[m].type.toLocaleLowerCase() == meter.toLocaleLowerCase()) {
-	// 			for (var i=0; i<meters[m].values.length; i++){
-	// 				res += meters[m].values[i].value;
-	// 			}
-	// 			break;
-	// 		}
-	// 	}
-
-	// 	return res;
-	// },
 
 	fetchPowerFlow: async function() {
 		var self = this;
@@ -245,40 +226,19 @@ module.exports = NodeHelper.create({
 
 		try {
 			const now = new Date();
-			let start = new Date(now.setDate(now.getDate()-1)); // 1day ago
-			let end = new Date(now.setDate(now.getDate()+1)); // tomorrow at midnight
-			end.setHours(23);
-			end.setMinutes(59);
-			end.setSeconds(59);
-			
-			const spotPriceUrl = `https://api.energy-charts.info/price?bzn=DE-LU&start=${start.toISOString()}&end=${end.toISOString()}`;
-			console.debug(`Fetch spotPrices from: ${spotPriceUrl}`);
-			const res = await axios.get(spotPriceUrl);
-			var data = res.data;
-			
-			// Find current price
-			data.price = data.price.map(p => p * 0.1); // Convert from €/MWh to ct/kWh
+			const tomorrow = new Date(now.setDate(now.getDate()+1));
 
-    		const nowUnixSeconds = Math.floor(Date.now() / 1000);
-
-			let idx = -1;
-			console.debug(`Searching through ${data.unix_seconds.length} prices/timestamps`);
-
-			for (let i = 0; i < data.unix_seconds.length; i++) {
-				if (data.unix_seconds[i] <= nowUnixSeconds && (idx === -1 || data.unix_seconds[i] > data.unix_seconds[idx])) {
-					idx = i;
-				}
+			if (self.spotPrices.maxDate < tomorrow) {
+				console.log("Caching new spot prices");
+				self.spotPrices.updateSpotPrices();
 			}
-
-			data.unix_seconds = data.unix_seconds.map(ts => new Date(ts * 1000).toLocaleString()); // Convert from Unix Seconds to readable local time
-
-			console.debug(`Found current price at ${idx}: ${data.unix_seconds[idx]} ${data.price[idx]}`);
-
+			
 			self.sendSocketNotification("SPOTPRICE", {
-				currentSpotPrice: data.price[idx],
-				priceUnit: "ct/kWh",
-				lastUpdate: new Date(),
-				prices: data
+				currentSpotPrice: self.spotPrices.currentPrice,
+				priceUnit: self.spotPrices.unit,
+				lastUpdate: self.spotPrices.currentPriceDate,
+				prices: self.spotPrices.prices,
+				dates: self.spotPrices.dates
 			});
 			
 			// return {

@@ -283,8 +283,7 @@ Module.register("MMM-PVMonitor",{
 		try{
 			if (self.spotPrice) {
 				var curr = self.spotPrice.currentSpotPrice;
-				const toFixed1 = (n) => Number(n.toFixed(1));
-				spotPriceText = `${toFixed1(curr)} ${self.spotPrice.priceUnit} (${new Date(self.spotPrice.lastUpdate).toLocaleTimeString()})`;
+				spotPriceText = `${curr} ${self.spotPrice.priceUnit} (${self.spotPrice.lastUpdate.toLocaleTimeString()})`;
 			}
 		} catch (err) {
 			console.error("Error updating spot price:",err);
@@ -310,7 +309,6 @@ Module.register("MMM-PVMonitor",{
                     <span class="${flowGRID2LOAD} overlayLeft"><img src="${arrowLeftImage}" /></span>
                     <span class="${flowLOAD2GRID} overlayLeft"><img src="${arrowRightImage}" /></span>
                     <img src="${gridImage}" />
-					<span class="spotPrice">${spotPriceText}</span>
 					<span class="spotPrice">${spotPriceText}</span>
                 </td>
             </tr>

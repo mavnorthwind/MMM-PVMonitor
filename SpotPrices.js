@@ -2,6 +2,7 @@
 
 // module SpotPrices.js
 const axios = require('axios');
+const { error } = require('console');
 const fs = require('fs');
 const path = require('path');
 
@@ -34,7 +35,7 @@ class SpotPrices {
     get prices() { return this.#prices; }
     get dates() { return this.#dates; }
     get unit() { return this.#unit; }
-    get updateTimestamp() { return this.#updateTimestamp; }
+    get updateTimestamp() { return new Date(this.#updateTimestamp); }
 
 
     get minDate() { return this.#minDate; }
@@ -45,7 +46,31 @@ class SpotPrices {
 
     get minPriceDate() { return this.#dates[this.#minPriceIndex]; }
     get maxPriceDate() { return this.#dates[this.#maxPriceIndex]; }
-    
+
+    get currentPrice() {
+        const idx = this.#findIndexOfLastPastDate(this.#dates);
+        if (idx < 0)
+            throw error("Only future prices in dataset");
+        return this.#prices[idx];
+    }
+    get currentPriceDate() {
+        const idx = this.#findIndexOfLastPastDate(this.#dates);
+        if (idx < 0)
+            throw error("Only future prices in dataset");
+        return new Date(this.#dates[idx]);
+    }
+
+    // Find index in dates with most recent past date
+    #findIndexOfLastPastDate(dates) {
+        const now = new Date();
+        // start with -1 to indicate “none found”
+        return dates.reduce((bestIdx, date, idx) => {
+            if (date < now && (bestIdx === -1 || date > dates[bestIdx])) {
+                return idx;          // new best
+            }
+            return bestIdx;          // keep previous best
+        }, -1);
+    }
 
     // Find index of the first minimal value
     #findIndexOfMinValue(arr) {
