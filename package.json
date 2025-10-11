@@ -10,7 +10,12 @@
   "license": "ISC",
   "dependencies": {
     "axios": "^1.12.2",
+    "canvas": "^3.2.0",
+    "chartjs-adapter-date-fns": "^3.0.0",
+    "chartjs-node-canvas": "^5.0.0",
     "dotenv": "^16.4.5",
-    "mmm-pvmonitor": "file:"
+    "mmm-pvmonitor": "file:",
+    "plotly.js-dist": "^3.1.1",
+    "plotly.js-dist-min": "^3.1.1"
   }
 }

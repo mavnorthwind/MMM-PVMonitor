@@ -65,23 +65,42 @@ class SpotPrices {
     get maxPriceDate() { return this.#dates[this.#maxPriceIndex]; }
 
     /**
+     * Find the minimum price in the future of the dataset
+     */
+    get minFuturePrice() {
+        const nowIndex = this.#findIndexOfEntryEarlierOrEqual(this.#dates);
+        const minFuturePriceIndex = this.#findIndexOfMinValue(this.#takeEndFrom(this.#prices, nowIndex));
+        return this.#prices[nowIndex + minFuturePriceIndex];
+    }
+
+    /**
+     * Find the Date for the minimum price in the future of the dataset
+     */
+    get minFuturePriceDate() {
+        const nowIndex = this.#findIndexOfEntryEarlierOrEqual(this.#dates);
+        const minFuturePriceIndex = this.#findIndexOfMinValue(this.#takeEndFrom(this.#prices, nowIndex));
+        return this.#dates[nowIndex + minFuturePriceIndex];
+    }
+
+    /**
      * Current spot price
      */
     get currentPrice() {
-        const idx = this.#findIndexOfEntryEarlierOrEqual(this.#dates);
-        if (idx < 0)
+        const nowIndex = this.#findIndexOfEntryEarlierOrEqual(this.#dates);
+        if (nowIndex < 0)
             throw error("Only future prices in dataset");
-        return this.#prices[idx];
+        return this.#prices[nowIndex];
     }
     /**
      * Date when the current price has been set. (Date)
      */
     get currentPriceDate() {
-        const idx = this.#findIndexOfEntryEarlierOrEqual(this.#dates);
-        if (idx < 0)
+        const nowIndex = this.#findIndexOfEntryEarlierOrEqual(this.#dates);
+        if (nowIndex < 0)
             throw error("Only future prices in dataset");
-        return new Date(this.#dates[idx]);
+        return new Date(this.#dates[nowIndex]);
     }
+
 
     /**
      * Does the current dataset contain tomorrow's spot prices?
@@ -137,19 +156,30 @@ class SpotPrices {
         }
     }
 
+    /**
+     * Take only the last part of an array from a given index
+     * @param {Array} array The array to recude
+     * @param {Number} startIdx Start index to start with
+     * @returns The end of the array, starting at startIdx
+     */
+    #takeEndFrom(array, startIdx = 0) {
+        if (!Array.isArray(array) || array.length === 0) return -1;
+        if (startIdx < 0 || startIdx >= array.length) return -1;
 
+        return array.slice(startIdx);
+    }
 
     /**
      * Find index of the entry with a timestamp closest and below the given date
      * Requires dates to be sorted
      * @param {Array} datesArray 
+     * @param {Date} [startingFrom=new Date()] 
      * @returns Index or -1 if not found
      */
-    #findIndexOfEntryEarlierOrEqual(datesArray) {
-        const now = new Date();
+    #findIndexOfEntryEarlierOrEqual(datesArray, startingFrom = new Date()) {
         // start with -1 to indicate “none found”
         return datesArray.reduce((bestIdx, date, idx) => {
-            if (date < now && (bestIdx === -1 || date > datesArray[bestIdx])) {
+            if (date < startingFrom && (bestIdx === -1 || date > datesArray[bestIdx])) {
                 return idx;          // new best
             }
             return bestIdx;          // keep previous best
