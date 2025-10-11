@@ -410,8 +410,8 @@ Module.register("MMM-PVMonitor",{
 			  };
 
 			  var spotprices = {
-				x: self.spotPrice ? self.spotPrice.unix_seconds : [0, 1],
-				y: self.spotPrice ? self.spotPrice.price : [10,12],
+				x: self.spotPrice.Dates,
+				y: self.spotPrice.price,
 				type: 'scatter',
 				name: "Preis",
 				mode: "lines",

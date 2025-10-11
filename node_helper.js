@@ -73,7 +73,7 @@ module.exports = NodeHelper.create({
 				self.solarEdgeApi = new SolaredgeAPI(self.config.siteId, self.config.apiKey, self.config.inverterId);
 
 				self.spotPrices = new SpotPrices();
-				if (!self.spotPrices.hasPrices)
+				if (!self.spotPrices.hasPrices || self.spotPrices.maxDate < new Date()) // No or old prices
 					await self.spotPrices.updateSpotPrices();
 
 				if (self.timer)
@@ -99,7 +99,7 @@ module.exports = NodeHelper.create({
 
 				setInterval(function() {
 					self.fetchSpotPrice();
-				}, 15*60*1000); // Update spot prices each 15 minutes
+				}, 4*60*60*1000); // Update spot prices every 4 hours - enough since we do caching
 
 				// run request 1st time
 				self.fetchSiteDetails();

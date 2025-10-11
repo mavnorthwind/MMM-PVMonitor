@@ -3,7 +3,8 @@
 // module SpotPrices.js
 const axios = require('axios');
 const { error } = require('console');
-const fs = require('fs');
+const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 
 class SpotPrices {
@@ -22,6 +23,9 @@ class SpotPrices {
     #minPriceIndex = undefined;
     #maxPriceIndex = undefined;
 
+    /**
+     * Create a new SpotPrices instance
+     */
     constructor() {
         this.#cachedFilePath = path.join(
                     process.main ? path.dirname(process.main.filename) : __dirname,
@@ -30,11 +34,24 @@ class SpotPrices {
         this.#readCachedPrices();
     }
 
-    get hasPrices() { return !(this.#spotpricedata === undefined); }
+    get hasData() { return !(this.#spotpricedata === undefined); }
 
+    /**
+     * Array of spot prices (Number)
+     */
     get prices() { return this.#prices; }
+    /**
+     * Array of spot price dates (Date)
+     */
     get dates() { return this.#dates; }
+    /**
+     * Unit of spot prices (usually ct/kWh)
+     */
     get unit() { return this.#unit; }
+
+    /**
+     * Timestamp when the spot prices were updated (Date)
+     */
     get updateTimestamp() { return new Date(this.#updateTimestamp); }
 
 
@@ -47,46 +64,121 @@ class SpotPrices {
     get minPriceDate() { return this.#dates[this.#minPriceIndex]; }
     get maxPriceDate() { return this.#dates[this.#maxPriceIndex]; }
 
+    /**
+     * Current spot price
+     */
     get currentPrice() {
-        const idx = this.#findIndexOfLastPastDate(this.#dates);
+        const idx = this.#findIndexOfEntryEarlierOrEqual(this.#dates);
         if (idx < 0)
             throw error("Only future prices in dataset");
         return this.#prices[idx];
     }
+    /**
+     * Date when the current price has been set. (Date)
+     */
     get currentPriceDate() {
-        const idx = this.#findIndexOfLastPastDate(this.#dates);
+        const idx = this.#findIndexOfEntryEarlierOrEqual(this.#dates);
         if (idx < 0)
             throw error("Only future prices in dataset");
         return new Date(this.#dates[idx]);
     }
 
-    // Find index in dates with most recent past date
-    #findIndexOfLastPastDate(dates) {
+    /**
+     * Does the current dataset contain tomorrow's spot prices?
+     */
+    get hasTomorrowsPrices() {
+        // No data → false
+        if (!this.#dates || this.#dates.length === 0) return false;
+
+        const now = new Date();
+
+        // Start of tomorrow (00:00:00)
+        const tomorrowStart = new Date(now);
+        tomorrowStart.setHours(0, 0, 0, 0);
+        tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+        return this.#maxDate >= tomorrowStart;
+    }
+
+    /**
+     * Fetch spot prices, save to cache and update internal variables
+     * The range of data fetched goes back <daysBack> at 00:00:00 and
+     * forward <daysForward> at 23:59:59
+     * @param {number} daysBack
+     * @param {number} daysForward 
+     */
+    async updateSpotPricesAsync(daysBack = 1, daysForward = 1) {
+        const now = new Date();
+
+        const startDate = new Date(now);
+        startDate.setHours(0, 0, 0, 0);
+        startDate.setDate(startDate.getDate() - daysBack);
+        const start = startDate.toISOString();
+
+        const endDate = new Date(now);
+        endDate.setHours(23, 59, 59, 999);
+        endDate.setDate(endDate.getDate() + daysForward);
+        const end = endDate.toISOString();
+
+        const spotPricesUrl = `https://api.energy-charts.info/price?bzn=DE-LU&start=${start}&end=${end}`;
+
+        try {
+            const res = await axios.get(spotPricesUrl);
+            console.debug(`Got spot price data`);
+
+            res.data.updateTimestamp = now;
+
+            await this.#writeCachedPricesAsync(res.data);
+
+            this.#readCachedPrices();
+        } catch(error) {
+            console.error(`Request for spot prices from ${spotPricesUrl} returned error:`, error);
+            throw error;
+        }
+    }
+
+
+
+    /**
+     * Find index of the entry with a timestamp closest and below the given date
+     * Requires dates to be sorted
+     * @param {Array} datesArray 
+     * @returns Index or -1 if not found
+     */
+    #findIndexOfEntryEarlierOrEqual(datesArray) {
         const now = new Date();
         // start with -1 to indicate “none found”
-        return dates.reduce((bestIdx, date, idx) => {
-            if (date < now && (bestIdx === -1 || date > dates[bestIdx])) {
+        return datesArray.reduce((bestIdx, date, idx) => {
+            if (date < now && (bestIdx === -1 || date > datesArray[bestIdx])) {
                 return idx;          // new best
             }
             return bestIdx;          // keep previous best
         }, -1);
     }
 
-    // Find index of the first minimal value
-    #findIndexOfMinValue(arr) {
-        const minIndex = arr.reduce(
+    /**
+     * Find the index of the minimum value in array
+     * @param {Array} array 
+     * @returns Index 
+     */
+    #findIndexOfMinValue(array) {
+        const minIndex = array.reduce(
             (best, current, idx) =>
-                current < arr[best] ? idx : best,
+                current < array[best] ? idx : best,
             0
         );
         return minIndex;
     }
 
-    // Find index of the first maximal value
-    #findIndexOfMaxValue(arr) {
-        const maxIndex = arr.reduce(
+    /**
+     * Find the index of the maximum value in array
+     * @param {Array} array 
+     * @returns Index 
+     */
+    #findIndexOfMaxValue(array) {
+        const maxIndex = array.reduce(
             (best, current, idx) =>
-                current > arr[best] ? idx : best,
+                current > array[best] ? idx : best,
             0
         );
         return maxIndex;
@@ -98,13 +190,17 @@ class SpotPrices {
      */
     #readCachedPrices() {
         try {
-            if (fs.existsSync(this.#cachedFilePath)) {
-                const data = fs.readFileSync(this.#cachedFilePath, 'utf8');
+            if (fsSync.existsSync(this.#cachedFilePath)) {
+                const data = fsSync.readFileSync(this.#cachedFilePath, 'utf8');
                 this.#spotpricedata = JSON.parse(data);
+
+                if (this.#spotpricedata.unit != "EUR / MWh")
+                    throw "Unit returned by spotprices.info has changes - no longer 'EUR / MWh'";
+
+                this.#unit = "ct/kWh";
 
                 // Convert from EUR/MWh to ct/kWh
                 this.#prices = this.#spotpricedata.price.map(p => Math.round(p) / 10);
-                this.#unit = "ct / kWh";
                 // Convert from unix_seconds to Date
                 this.#dates = this.#spotpricedata.unix_seconds.map(d => new Date(d * 1000));
 
@@ -124,36 +220,13 @@ class SpotPrices {
 
     /**
      * Write spot prices to cache
-     * @param {*} prices 
+     * @param {*} spotPriceData 
      */
-    #writeCachedPrices(prices) {
+    async #writeCachedPricesAsync(spotPriceData) {
         try {
-            fs.writeFileSync(this.#cachedFilePath, JSON.stringify(prices), { encoding: 'utf-8' });
+            await fs.writeFile(this.#cachedFilePath, JSON.stringify(spotPriceData), { encoding: 'utf-8' });
         } catch (error) {
             console.error("Error saving spot prices:", error);
-            throw error;
-        }
-    }
-
-    /**
-     * Fetch spot prices, save to cache and update internal variables
-     */
-    async updateSpotPrices() {
-        const start = "2025-10-09";
-        const end = "2025-10-11";
-        const spotPricesUrl = `https://api.energy-charts.info/price?bzn=DE-LU&start=${start}&end=${end}`;
-
-        try {
-            const res = await axios.get(spotPricesUrl);
-            console.debug(`Got spot price data`);
-
-            res.data.updateTimestamp = new Date();
-
-            this.#writeCachedPrices(res.data);
-
-            this.#readCachedPrices();
-        } catch(error) {
-            console.error(`Request for spot prices from ${spotPricesUrl} returned error:`, error);
             throw error;
         }
     }
