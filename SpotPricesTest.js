@@ -1,19 +1,22 @@
 'use strict';
+const dotenv = require("dotenv");
+dotenv.config({path: '.env.local'});
+
 const SpotPrices = require("./SpotPrices.js");
 const spotPrices = new SpotPrices();
-const fs = require('fs');
 
-// ---------- Ensure a date‑fns adapter is available ----------
-const dateFns = require('date-fns');
-global.dateFns = dateFns;
-if (!dateFns.parseISO) {
-    // Fallback: simple ISO parser that works with the Chart.js adapter
-    dateFns.parseISO = (isoString) => new Date(isoString);
-}
+const SolaredgeAPI = require("./SolaredgeAPI.js");
+const solarEdgeApi = new SolaredgeAPI(process.env.SOLAREDGE_SITEID, process.env.SOLAREDGE_APIKEY, process.env.SOLAREDGE_INVERTERID);
+
+const fs = require('fs');
 
 // ---------- Load Chart.js before the adapter ----------
 const Chart = require('chart.js');
 global.Chart = Chart;
+
+// ---------- Ensure a date‑fns adapter is available ----------
+const dateFns = require('date-fns');
+global.dateFns = dateFns;
 
 // ---------- Load the date‑fns adapter ----------
 require('chartjs-adapter-date-fns');
@@ -46,6 +49,19 @@ const { posix } = require("path");
     console.log(`Current price ${spotPrices.currentPrice} ${spotPrices.unit} (since ${spotPrices.currentPriceDate.toLocaleString()})`);
     console.log(`Future minimum price ${spotPrices.minFuturePrice} at ${spotPrices.minFuturePriceDate}`);
 
+    const now = new Date();
+    // Create "today 00:00:00"
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    // Create "tomorrow 00:00:00"
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0, 0, 0);
+
+    const storageData = await solarEdgeApi.fetchStorageData(startOfDay, now);
+    console.log(`SolarEdge diagram data: ${storageData.length} items`);
+    const storageDataset = [];
+    storageData.forEach((val, index, array) => {
+        storageDataset.push({ x: val.timeStamp, y: val.socPercent });
+    });
+
     // --- Generate chart image using Chart.js -------------------------------
     const width = 800;   // px
     const height = 600;  // px
@@ -53,13 +69,6 @@ const { posix } = require("path");
 
     const spotPricesDataset = spotPrices.dates.map((d,i) => ({x: d, y:spotPrices.prices[i]}));
     
-    const now = new Date();
-
-    // Create "today 00:00:00"
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    // Create "tomorrow 00:00:00"
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0, 0, 0);
-
     const backgroundPlugin = {
         id: 'customCanvasBackgroundColor',
         beforeDraw: (chart) => {
@@ -73,15 +82,6 @@ const { posix } = require("path");
 
     const currentPriceDataset = [{x: spotPrices.currentPriceDate, y:spotPrices.currentPrice}];
 
-    // TODO: Use real SoC data
-    const soCDataset = [];
-    soCDataset.push({x: startOfDay, y: 10});
-    soCDataset.push({x: new Date("2025-10-11T05:00:00"), y: 10});
-    soCDataset.push({x: new Date("2025-10-11T07:00:00"), y: 20});
-    soCDataset.push({x: new Date("2025-10-11T09:00:00"), y: 50});
-    soCDataset.push({x: new Date("2025-10-11T19:00:00"), y: 20});
-    soCDataset.push({x: new Date(), y: 15});
-
     const configuration = {
         type: 'line',
         data: {
@@ -91,16 +91,16 @@ const { posix } = require("path");
                     data: currentPriceDataset,
                     backgroundColor: '#ff0',
                     borderColor: '#ff0',
-                    fill: false,
-                    tension: 0.1
+                    borderWidth: 2,
+                    pointRadius: 6,
+                    pointStyle: 'star',
                 },
                 {
                     label: `Min: ${spotPrices.minPrice} ${spotPrices.unit}`,
                     data: [{x: spotPrices.minPriceDate, y: spotPrices.minPrice}],
                     backgroundColor: '#080',
                     borderColor: '#080',
-                    fill: false,
-                    tension: 0.1
+                    pointStyle: 'triangle',
                 },
                 {
                     label: `Max: ${spotPrices.maxPrice} ${spotPrices.unit}`,
@@ -122,8 +122,8 @@ const { posix } = require("path");
                     tension: 0.1
                 },
                 {
-                    label: `State of Charge`,
-                    data: soCDataset,
+                    label: `SoC %`,
+                    data: storageDataset, //soCDataset,
                     borderColor: '#1f77b4',
                     backgroundColor: '#184463',
                     borderWidth: 2,
@@ -156,11 +156,6 @@ const { posix } = require("path");
                 },
                 y: {
                     position: 'left',
-                    title: {
-                        display: true,
-                        text: `Price (${spotPrices.unit})`,
-                        color: '#0A0',
-                    },
                     grid: {
                         drawTicks: true,
                         drawOnChartArea: false,
@@ -176,11 +171,6 @@ const { posix } = require("path");
                     min: 0,
                     max: 100,
                     position: 'right',
-                    title: {
-                        display: true,
-                        text: `SoC %`,
-                        color: '#1f77b4',
-                    },
                     grid: {
                         drawTicks: true,
                         drawOnChartArea: true,

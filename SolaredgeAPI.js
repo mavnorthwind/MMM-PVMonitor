@@ -325,6 +325,52 @@ class SolaredgeAPI {
 			throw error;
 		}
 	}
+
+	/**
+	 * Fetch storage data
+	 * 
+	 * @param {Date} from Start storage
+	 * @param {Date} to End storage
+	 * 
+	 * @returns {[{
+	 * 				timeStamp: {Date},
+	 * 				socPercent: {Number},
+	 * 				temp: {Number},
+	 * 				power: {Number},
+	 * 				acGridCharging: {Number}
+	 * 			}]} 
+	 */
+	async fetchStorageData(from, to) {
+		const storageDataUrl = `https://monitoringapi.solaredge.com/site/${this.#siteId}/storageData`;
+
+		const storageData = [];
+
+		await axios
+		.get(storageDataUrl, {
+			params: {
+				format: "application/json",
+				api_key: this.#apiKey,
+				startTime: this.#formatDateTimeForAPI(from), // does not accept ISO Strings, must be formatted separately
+				endTime: this.#formatDateTimeForAPI(to)
+		}})
+		.then(res => {
+			res.data.storageData.batteries[0].telemetries.forEach((val, idx, arr) => {
+				storageData.push({
+					timeStamp: new Date(val.timeStamp),
+					socPercent: val.batteryPercentageState,
+					temp: val.internalTemp,
+					power: val.power, // positive: charging, negative: discharging
+					acGridCharging: val.ACGridCharging, // grid power used for charging in Wh
+				});
+			});
+		})
+		.catch(error => {
+			console.error("Could not get storage data:", error);
+			throw error;
+		});
+
+		return storageData;
+	}
 }
 
 module.exports = SolaredgeAPI;

@@ -142,3 +142,5 @@ ehthumbs.db
 Thumbs.db
 
 spotPricesCache.json
+storageData.json
+inverterData.json
