@@ -30,123 +30,128 @@ Module.register("MMM-PVMonitor",{
 		lastProduction: "unknown"
 	},
 
-	// diagram data
-	storageTimes: [],
-	storageValues: [],
-	tempTimes: [],
-	tempValues: [],
-	
 	// Tesla data
 	teslaData: undefined,
 
-	// SpotPrice
-	spotPrice: undefined,
+	// SpotPrices
+	spotPrices: undefined,
+	
+	storageData: undefined,
 
+	// The SoC/spot price diagram
+	diagram: undefined,
+	
+	// Diagram wrapper
+	wrapper: undefined,
 
 	start: function() {
-
-		// var config = {
-		// 	siteId: "INSERTSITEID",
-		// 	inverterId: "INSERTINVERTERID",
-		// 	apiKey: "INSERTAPIKEY",
-		// 	interval: 30*60*1000, // update each 30 minutes
-		// 	pMax: 7.945, // nominal power (kWp)
-		// 	teslaOAuthToken: "Bearer INSERTOAUTHBEARERTOKEN",
-		//	teslaVehicleId: "INSERTVEHICLEID"
-		// };
-
-		var self = this;
-		console.log(`Starting module: ${self.name} with config ${JSON.stringify(self.config)}`);
 		
-		self.sendSocketNotification('CONFIG', self.config);
+		console.log(`Starting module: ${this.name} with config ${JSON.stringify(this.config)}`);
+		
+		this.sendSocketNotification('ENERGYCONFIG', this.config);
 	},
 	
 	notificationReceived: function(notification, payload, sender) {
-		var self = this;
+		
+		if (notification === "DOM_OBJECTS_CREATED") {
 
+			const dia = document.getElementById("diagramWrapper");
+			const canvas = document.createElement("canvas");
+			canvas.id = "diagram";
+			dia.appendChild(canvas);
+
+			this.createDiagram();
+		}
+		
 		if (notification === "USER_PRESENCE") { // relay to node_helper to update data
-			console.log(`Module ${self.name}: socketNotification ${notification} received - relay to helper`);
-			self.sendSocketNotification("USER_PRESENCE", payload)
+			console.log(`Module ${this.name}: socketNotification ${notification} received - relay to helper`);
+			this.sendSocketNotification("USER_PRESENCE", payload)
 		}
 	},
 
 	socketNotificationReceived: function(notification, payload) {
-		var self = this;
-		console.log(`Module ${self.name}: socketNotification ${notification} with payload ${JSON.stringify(payload)} received`);
+		console.log(`Module ${this.name}: socketNotification ${notification} with payload ${JSON.stringify(payload)} received`);
 
 		if (notification === "SITEDETAILS") {
-			self.siteDetails = payload;
+			this.siteDetails = payload;
 		}
 
 		if (notification === "POWERFLOW") {
-			self.lastError = undefined;
-			self.powerFlow = payload.powerflow;
-			self.requestCount = payload.requestCount;
-			self.productionSpan = payload.productionSpan;
-			self.timestamp = new Date();
-			if (self.powerFlow.PV.currentPower >= self.siteDetails.maxPower.value) {
-				self.siteDetails.maxPower.value = self.powerFlow.PV.currentPower;
-				self.siteDetails.maxPower.timestamp = Date.now();
-				console.log(`Module ${self.name}: New max power ${self.siteDetails.maxPower.value} ${self.powerFlow.unit} at ${new Date(self.siteDetails.maxPower.timestamp).toLocaleString()}`);
+			this.lastError = undefined;
+			this.powerFlow = payload.powerflow;
+			this.requestCount = payload.requestCount;
+			this.productionSpan = payload.productionSpan;
+			this.timestamp = new Date();
+			if (this.powerFlow.PV.currentPower >= this.siteDetails.maxPower.value) {
+				this.siteDetails.maxPower.value = this.powerFlow.PV.currentPower;
+				this.siteDetails.maxPower.timestamp = Date.now();
+				console.log(`Module ${this.name}: New max power ${this.siteDetails.maxPower.value} ${this.powerFlow.unit} at ${new Date(this.siteDetails.maxPower.timestamp).toLocaleString()}`);
 			}
-			self.updateDom(0);
+			this.updateDom(0);
 		}
 
 		if (notification === "PRODUCTION") {
-			self.lastError = undefined;
-			self.energy = payload;
-			self.updateDom(0);
+			this.lastError = undefined;
+			this.energy = payload;
+			this.updateDom(0);
 		}
 
 		if (notification === "AUTARCHY") {
-			self.lastError = undefined;
-			self.autarchy = payload;
-			self.updateDom(0);
+			this.lastError = undefined;
+			this.autarchy = payload;
+			this.updateDom(0);
 		}
 
-		if (notification === "DIAGRAMDATA") {
-			self.lastError = undefined;
-			self.tempTimes = payload.tempTimes;
-			self.tempValues = payload.tempValues;
-			self.storageTimes = payload.storageTimes;
-			self.storageValues = payload.storageValues;
-			self.updateDom(0);
-		}
+		// if (notification === "DIAGRAMDATA") {
+		// 	this.lastError = undefined;
+		// 	this.tempTimes = payload.tempTimes;
+		// 	this.tempValues = payload.tempValues;
+		// 	this.storageTimes = payload.storageTimes;
+		// 	this.storageValues = payload.storageValues;
+		// 	this.updateDom(0);
+		// }
 		
 		if (notification === "TESLA") {
 			//console.log("TESLA Data received: "+JSON.stringify(payload));
-			self.teslaData = payload;
-			self.updateDom(0);
+			this.teslaData = payload;
+			this.updateDom(0);
 		}
 				
 		if (notification === "SPOTPRICE") {
-			self.spotPrice = payload;
-			console.log("SPOTPRICE:", self.spotPrice);
+			this.spotPrices = payload;
+			console.log("SPOTPRICE received:", this.spotPrices);
 
-			self.updateDom(0);
+			this.updateDiagram();
+			this.updateDom(0);
+		}
+
+		if (notification === "STORAGEDATA") {
+			this.storageData = payload;
+			console.log("STORAGEDATA received");
+
+			this.updateDiagram();
 		}
 
 		if (notification === "USER_RESENCE" && payload == true) {
-			self.updateDom(500);
+			this.updateDom(500);
 		}
 
 		if (notification === "PVERROR" ||
 			notification === "TESLAERROR") {
-			//self.powerFlow = undefined;
-			self.lastError = payload;
-			//self.timestamp = new Date();
-			self.updateDom(0);
+			//this.powerFlow = undefined;
+			this.lastError = payload;
+			//this.timestamp = new Date();
+			this.updateDom(0);
 		}
 	},
 
 	getComponentImage: function(component, powerFlow) {
-		var self = this;
 		var status = "";
 		switch (component) {
 			case "PV":
 				status = powerFlow.PV.status;
 				if (status === "Active") {
-					var amount = powerFlow.PV.currentPower / self.siteDetails.maxPower.value;
+					var amount = powerFlow.PV.currentPower / this.siteDetails.maxPower.value;
 					if (amount < 0.1) status = "Active_0";
 					else if (amount < 0.25) status = "Active_25";
 					else if (amount < 0.5) status = "Active_50";
@@ -164,40 +169,28 @@ Module.register("MMM-PVMonitor",{
 				console.error(`Unknown component ${component}`);
 		}
 
-		return self.file(`Images/${component}${status}.svg`);
+		return this.file(`Images/${component}${status}.svg`);
 	},
 
 	getStorageImage: function(powerFlow) {
-		var self = this;
 		var file;
 		if (powerFlow.STORAGE) {
 			var level = Math.round(powerFlow.STORAGE.chargeLevel/10) * 10;
 			if (level == 0)
 				level = "00";
-			file = `Images/EL_${level}`;
+			file = `Images/EL_${level}.svg`;
 		} else {
-			file = "Images/Empty";
+			file = "Images/Empty.svg";
 		}
 
-		// if (self.hasFlow(powerFlow, "PV", "STORAGE") ||
-		// 	self.hasFlow(powerFlow, "GRID", "STORAGE"))
-		// 	file += "_charge";
-		// else if (self.hasFlow(powerFlow, "STORAGE", "LOAD") ||
-		// 		 self.hasFlow(powerFlow, "STORAGE", "GRID"))
-		// 	file += "_discharge";
-		
-		file += ".svg";
-
-		return self.file(file);
+		return this.file(file);
 	},
 
 	hasFlow: function(powerFlow, from, to) {
-		var i;
-		
 		from = from.toLocaleLowerCase();
 		to = to.toLocaleLowerCase();
 
-		for (i=0; i<powerFlow.connections.length; i++) {
+		for (var i=0; i<powerFlow.connections.length; i++) {
 			if (powerFlow.connections[i].from.toLocaleLowerCase() === from &&
 				powerFlow.connections[i].to.toLocaleLowerCase() === to)
 				return true;
@@ -224,66 +217,58 @@ Module.register("MMM-PVMonitor",{
 	},
 
 	fillTableTemplate: function(powerFlow) {
-		var self = this;
-
-		// as a test, add a STORAGE object
-		// powerFlow.STORAGE = {
-		// 	"status": "Idle",
-		// 	"currentPower": 0.3,
-		// 	"chargeLevel": 27,
-		// 	"critical": false
-		// };
-
 		var hasStorage = false;
 		if (powerFlow.STORAGE) hasStorage = true;
 		var storageClass = hasStorage ? "on" : "off";
 		var storageCharge = hasStorage ? powerFlow.STORAGE.chargeLevel : "n/a";
-		var storagePower = hasStorage ? self.beautifyPower(powerFlow.STORAGE.currentPower, powerFlow.unit) : "0";
-		var pvImage = self.getComponentImage("PV", powerFlow);
-		var loadImage = self.getComponentImage("Load", powerFlow);
-		var gridImage = self.getComponentImage("Grid", powerFlow);
-		var storageImage = self.getStorageImage(powerFlow);
-		var chargingImage = self.file("Images/Battery_Charging.svg");
+		var storagePower = hasStorage ? this.beautifyPower(powerFlow.STORAGE.currentPower, powerFlow.unit) : "0";
+		var pvImage = this.getComponentImage("PV", powerFlow);
+		var loadImage = this.getComponentImage("Load", powerFlow);
+		var gridImage = this.getComponentImage("Grid", powerFlow);
+		var storageImage = this.getStorageImage(powerFlow);
+		var chargingImage = this.file("Images/Battery_Charging.svg");
 		var chargingClass = "discharging";
 		if (hasStorage && powerFlow.STORAGE.status === "Charging")
 			chargingClass = "chargingImage";
-		var arrowDownImage = self.file("Images/Arrow_Down_G.svg");
-		var arrowLeftImage = self.file("Images/Arrow_Left_O.svg");
-		var arrowRightImage = self.file("Images/Arrow_Right_G.svg");
-		var arrowRightDownImage = self.file("Images/Arrow_RightDown_G.svg");
-		var arrowRightUpImage = self.file("Images/Arrow_RightUp_G.svg");
+		var arrowDownImage = this.file("Images/Arrow_Down_G.svg");
+		var arrowLeftImage = this.file("Images/Arrow_Left_O.svg");
+		var arrowRightImage = this.file("Images/Arrow_Right_G.svg");
+		var arrowRightDownImage = this.file("Images/Arrow_RightDown_G.svg");
+		var arrowRightUpImage = this.file("Images/Arrow_RightUp_G.svg");
 
-		var flowPV2STORAGE = self.hasFlow(powerFlow, "PV", "STORAGE") ? "" : "off";
-		var flowPV2LOAD = self.hasFlow(powerFlow, "PV", "Load") ? "" : "off";
-		var flowGRID2LOAD = self.hasFlow(powerFlow, "GRID", "Load") ? "" : "off";
-		var flowLOAD2GRID = self.hasFlow(powerFlow, "Load", "GRID") ? "" : "off";
-		var flowSTORAGE2LOAD = self.hasFlow(powerFlow, "STORAGE", "LOAD") ? "" : "off";
+		var flowPV2STORAGE = this.hasFlow(powerFlow, "PV", "STORAGE") ? "" : "off";
+		var flowPV2LOAD = this.hasFlow(powerFlow, "PV", "Load") ? "" : "off";
+		var flowGRID2LOAD = this.hasFlow(powerFlow, "GRID", "Load") ? "" : "off";
+		var flowLOAD2GRID = this.hasFlow(powerFlow, "Load", "GRID") ? "" : "off";
+		var flowSTORAGE2LOAD = this.hasFlow(powerFlow, "STORAGE", "LOAD") ? "" : "off";
 
-		var productionToday = self.energy ? `${self.beautifyEnergy(self.energy.productionToday, self.energy.unit)}` : "?";
-		var productionYesterday = self.energy ? `${self.beautifyEnergy(self.energy.productionYesterday, self.energy.unit)}` : "?";
+		var productionToday = this.energy ? `${this.beautifyEnergy(this.energy.productionToday, this.energy.unit)}` : "?";
+		var productionYesterday = this.energy ? `${this.beautifyEnergy(this.energy.productionYesterday, this.energy.unit)}` : "?";
 
-		var autarchy = self.autarchy ? Math.round(self.autarchy.percentage * 100) : "?";
+		var autarchy = this.autarchy ? Math.round(this.autarchy.percentage * 100) : "?";
 
-		var teslaImage = self.file("Images/Tesla_Model3_red.svg");
+		var teslaImage = this.file("Images/Tesla_Model3_red.svg");
 		const milesToKm = 1.609344;
-		var teslaBatteryLevel = self.teslaData ? self.teslaData.batteryLevel : "?";
-		var teslaBatteryRange = self.teslaData ? Math.round(self.teslaData.batteryRange * milesToKm) : "?";
-		var teslaEstimatedBatteryRange = self.teslaData ? Math.round(self.teslaData.estimatedBatteryRange * milesToKm) : "?";
-		var teslaTimestamp = self.teslaData ? new Date(self.teslaData.timestamp).toLocaleTimeString() : "?";
-		var teslaChargingState = self.teslaData ? self.teslaData.chargingState : "?";
-		var teslaState = self.teslaData ? self.teslaData.state : "?";
-		var teslaMinutesToFullCharge = self.teslaData ? self.teslaData.minutesToFullCharge : 0;
-		var teslaChargePower = self.teslaData ? self.teslaData.chargerPower : 0;
-		var teslaChargeCurrent = self.teslaData ? self.teslaData.chargerActualCurrent : 0;
-		var lasterror = self.lastError ? self.lastError.message : "";
-		var teslaChargeClass = self.teslaData ? (self.teslaData.chargingState=="Charging" ? "" : "off") : "off";
+		var teslaBatteryLevel = this.teslaData ? this.teslaData.batteryLevel : "?";
+		var teslaBatteryRange = this.teslaData ? Math.round(this.teslaData.batteryRange * milesToKm) : "?";
+		var teslaEstimatedBatteryRange = this.teslaData ? Math.round(this.teslaData.estimatedBatteryRange * milesToKm) : "?";
+		var teslaTimestamp = this.teslaData ? new Date(this.teslaData.timestamp).toLocaleTimeString() : "?";
+		var teslaChargingState = this.teslaData ? this.teslaData.chargingState : "?";
+		var teslaState = this.teslaData ? this.teslaData.state : "?";
+		var teslamaxutesToFullCharge = this.teslaData ? this.teslaData.maxutesToFullCharge : 0;
+		var teslaChargePower = this.teslaData ? this.teslaData.chargerPower : 0;
+		var teslaChargeCurrent = this.teslaData ? this.teslaData.chargerActualCurrent : 0;
+		var lasterror = this.lastError ? this.lastError.message : "";
+		var teslaChargeClass = this.teslaData ? (this.teslaData.chargingState=="Charging" ? "" : "off") : "off";
 
 		// Format Spot Prices
 		var spotPriceText = "UNKNOWN";
 		try{
-			if (self.spotPrice) {
-				var curr = self.spotPrice.currentSpotPrice;
-				spotPriceText = `${curr} ${self.spotPrice.priceUnit} (${self.spotPrice.lastUpdate.toLocaleTimeString()})`;
+			if (this.spotPrices) {
+				var curr = this.spotPrices.currentSpotPrice;
+				var unit = this.spotPrices.priceUnit;
+				var update = new Date(this.spotPrices.updateTimestamp);
+				spotPriceText = `${curr} ${unit} (${update.toLocaleTimeString()})`;
 			}
 		} catch (err) {
 			console.error("Error updating spot price:",err);
@@ -294,9 +279,9 @@ Module.register("MMM-PVMonitor",{
 		var template = 
 		`<table>
             <tr>
-                <th class="MMPV_TH">${self.beautifyPower(powerFlow.PV.currentPower, powerFlow.unit)}</th>
-                <th class="MMPV_TH">${self.beautifyPower(powerFlow.LOAD.currentPower, powerFlow.unit)}</th>
-                <th class="MMPV_TH">${self.beautifyPower(powerFlow.GRID.currentPower, powerFlow.unit)}</th>
+                <th class="MMPV_TH">${this.beautifyPower(powerFlow.PV.currentPower, powerFlow.unit)}</th>
+                <th class="MMPV_TH">${this.beautifyPower(powerFlow.LOAD.currentPower, powerFlow.unit)}</th>
+                <th class="MMPV_TH">${this.beautifyPower(powerFlow.GRID.currentPower, powerFlow.unit)}</th>
             </tr>
             <tr>
                 <td class="MMPV_TD">
@@ -327,22 +312,22 @@ Module.register("MMM-PVMonitor",{
 				</td>
             </tr>
         </table>
-		<div id="diagram" class="diagram">
+		<div id="diagramWrapper" class="diagramWrapper">
 		</div>
 		<div class="summary">
-			Stand: ${self.timestamp.toLocaleTimeString()}; Produktion heute: ${productionToday} (gestern ${productionYesterday})
+			Stand: ${this.timestamp.toLocaleTimeString()}; Produktion heute: ${productionToday} (gestern ${productionYesterday})
 		</div>
 		<div class="summary" style="display:none">
-			PeakPower ${self.siteDetails.peakPower} kW (max ${self.siteDetails.maxPower.value} kW am ${new Date(self.siteDetails.maxPower.timestamp).toLocaleString()})
+			PeakPower ${this.siteDetails.peakPower} kW (max ${this.siteDetails.maxPower.value} kW am ${new Date(this.siteDetails.maxPower.timestamp).toLocaleString()})
 		</div>
 		<div class="summary" style="display:none">
-			Produktion heute von ${self.productionSpan.firstProduction} bis ${self.productionSpan.lastProduction}
+			Produktion heute von ${this.productionSpan.firstProduction} bis ${this.productionSpan.lastProduction}
 		</div>
 		<div class="summary">
 			Autarkie der letzten 30 Tage: ${autarchy} %
 		</div>
 		<div class="summary">
-			Ladestatus: ${teslaChargingState}; noch ${teslaMinutesToFullCharge} Min. (Stand: ${teslaTimestamp})
+			Ladestatus: ${teslaChargingState}; noch ${teslamaxutesToFullCharge} max. (Stand: ${teslaTimestamp})
 		</div>
 		<div class="lasterror">
 			${lasterror}
@@ -358,132 +343,322 @@ Module.register("MMM-PVMonitor",{
 
 	// Override dom generator.
 	getDom: function() {
-		var self = this;
-		var wrapper = document.createElement("div");
-		
-		// wrapper.innerHTML = `<div class="error">Last error: ${JSON.stringify(self.lastError)}</div><div class="error">Received ${self.timestamp}</div>`;
-		if (self.powerFlow) {
-			self.html = self.fillTableTemplate(self.powerFlow);
-			wrapper.innerHTML = self.html;
-			// We must defer drawing the diagram until the DOM has been updated to contain the target div!
-			setTimeout(() => self.drawDiagram(), 100);
-		} else {
-			wrapper.innerHTML = "Loading... ";
+		console.log(`Module ${this.name}: getDom() called`);
+
+		if (this.wrapper == undefined) {
+			this.wrapper = this.buildDom();
 		}
+		// if (this.powerFlow) {
+		// 	this.html = this.fillTableTemplate(this.powerFlow);
+		// 	this.wrapper.innerHTML = this.html;
+		// 	// We must defer drawing the diagram until the DOM has been updated to contain the target div!
+		// 	setTimeout(() => this.updateDiagram(), 100);
+		// } else {
+		// 	this.wrapper.innerHTML = `<p>Loading... </p>
+		// 			<div id="diagramWrapper" class="diagramWrapper"></div>`;
+		// }
+		return this.wrapper;
+	},
+
+	buildDom: function() {
+		const html = `<div id='powerflowTable' class='powerflow'>Loading Powerflow Table...</div>
+			<div id="batteryDiagram" class="battery"><canvas id="batteryChart"></canvas>Loading Battery Diagram...</div>
+			<p id="summary">Loading Summary</p>`;
+
+		var wrapper = document.createElement("div");
+		wrapper.id = "MMM-PVMonitorWrapper";
+		wrapper.innerHTML = html;
+
+		const ctx = wrapper.getElementById("batteryChart").getContext('2d');
+		const config = buildChartConfig();
+		const chart = new Chart(ctx, config);
+
 		return wrapper;
+	},
+
+	buildChartConfig: function() {
+		return {
+			type: 'line',
+          data: {
+            datasets: [
+              {
+                label: 'Beispielwerte',
+                data: [],
+                tension: 0.25,
+                borderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: false,
+                // Styling (kann angepasst werden)
+                borderColor: 'rgb(37,99,235)'
+              }
+            ]
+          },
+          options: {
+            maintainAspectRatio: false,
+            plugins: {
+            },
+            scales: {
+              x: {
+                type: 'time', // WICHTIG: Zeitachse
+                time: {
+                  // 'unit' legt das Raster/Labeling nahe. Die Adapter übernimmt Parsing/Formatting.
+                  unit: 'hour',
+                  displayFormats: {
+                    hour: 'HH:mm'
+                  }
+                },
+                title: {
+                  display: true,
+                  text: 'Datum'
+                }
+              },
+              y: {
+                beginAtZero: false,
+                title: {
+                  display: true,
+                  text: 'Wert'
+                }
+              }
+            }
+          }
+		};
 	},
 
 	getScripts: function() {
 		return [
-			"https://cdn.plot.ly/plotly-latest.min.js"
+			// Chart.js (global UMD build)
+			"https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js",
+			// date-fns (peer dependency for the adapter)
+			"https://cdn.jsdelivr.net/npm/date-fns@2.30.0/dist/date-fns.min.js",
+			// date-fns adapter for Chart.js
+			"https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"
 		];
 	},
 
-	drawDiagram: function() {
-		var self = this;
 
-		var dia = document.getElementById("diagram");
-		if (dia) {
-			var storage = {
-				x: self.storageTimes,
-				y: self.storageValues,
-				type: 'scatter',
-				name: "SoC",
-				fill: 'tozeroy',
-				line: {
-				  color: "#1F77B4",
-				  shape: "spline"
+	
+	createDiagram: function() {
+		try {
+			if (!window.Chart) {
+				console.error("Chart.js not loaded yet!");
+				return;
+			}
+
+			if (Chart._adapters && Chart._adapters._date && !Chart._adapters.date) {
+				Chart._adapters.date = Chart._adapters._date;
+				console.warn("Manually registered Chart.js date adapter:", Chart._adapters.date);
+			}
+
+			if (!Chart._adapters?.date?.parse) {
+				console.error("Date adapter missing — Chart.js adapters:", Chart._adapters);
+				return;
+			}
+
+
+			console.log("Creating diagram");
+			const ctx = document.getElementById("diagram").getContext('2d');
+
+			const currentPriceDataset = [];
+			const minPriceDataset = [];
+			const maxPriceDataset = [];
+			const spotPricesDataset = [];
+			const storageDataset = [];
+
+			const now = new Date();
+			// Create "today 00:00:00"
+			const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+			// Create "tomorrow 00:00:00"
+			const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0, 0, 0);
+
+			const backgroundPlugin = {
+				id: 'customCanvasBackgroundColor',
+				beforeDraw: (chart) => {
+					const { ctx, chartArea } = chart;
+					ctx.save();
+					ctx.fillStyle = '#111';
+					ctx.fillRect(chartArea.left, chartArea.top, chartArea.width, chartArea.height);
+					ctx.restore();
 				}
-			  };
-			  var temp = {
-				x: self.tempTimes,
-				y: self.tempValues,
-				type: 'scatter',
-				name: "Temp",
-				mode: 'lines',
-				line: {
-				  color: '#F80',
-				  width: 2,
-				  shape: "spline" 
-				},
-				yaxis: "y2"
-			  };
+	    	};
 
-			  var spotprices = {
-				x: self.spotPrice.Dates,
-				y: self.spotPrice.price,
-				type: 'scatter',
-				name: "Preis",
-				mode: "lines",
-				line: {
-					color: '#0a0',
-					width: 2,
-					shape: "spline"
-				}
-			  };
-
-			  var data = [storage, temp, spotprices];
-			  
-			  var layout = {
-				plot_bgcolor:"#111",
-				paper_bgcolor:"#000",
-				  showlegend: true,
-				legend: {
-				  x: 0,
-				  xanchor: 'left',
-				  y: 1,
-				  bgcolor: '#0008',
-				  font: {
-					  size: 8
-				  }
+			const configuration = {
+				type: 'line',
+				data: {
+					datasets: [
+						{
+							label: `Current: ???`,
+							data: currentPriceDataset,
+							backgroundColor: '#ff0',
+							borderColor: '#ff0',
+							borderWidth: 2,
+							pointRadius: 6,
+							pointStyle: 'star',
+						},
+						{
+							label: `Min: ???`,
+							data: minPriceDataset,
+							backgroundColor: '#080',
+							borderColor: '#080',
+							pointStyle: 'triangle',
+						},
+						{
+							label: `Max: ???`,
+							data: maxPriceDataset,
+							backgroundColor: '#800',
+							borderColor: '#800',
+							fill: false,
+							tension: 0.1
+						},
+						{
+							type: 'line',
+							label: `Spot Prices (???)`,
+							data: spotPricesDataset,
+							borderColor: '#07cf39ff',
+							backgroundColor: '#07cf39ff',
+							borderWidth: 2,
+							pointRadius: 0,
+							fill: false,
+							tension: 0.1
+						},
+						{
+							label: `SoC %`,
+							data: storageDataset,
+							borderColor: '#1f77b4',
+							backgroundColor: '#184463',
+							borderWidth: 2,
+							pointRadius: 0,
+							fill: true,
+							tension: 0.1,
+							yAxisID: 'y2'
+						}
+					]
 				},
-				margin: {
-				  l: 20,
-				  r: 20,
-				  t: 10,
-				  b: 20
-				},
-				font: {
-				  color: "#AAA"
-				},
-				xaxis: {
-					tickmode: "array", // If "array", the placement of the ticks is set via `tickvals` and the tick text is `ticktext`.
-					tickvals: [0, 12*3, 24*3, 36*3, 48*3, 60*3, 72*3, 84*3, 95*3],
-				},
-				yaxis: {
-				  range: [0,100],
-				  tickmode: "array", // If "array", the placement of the ticks is set via `tickvals` and the tick text is `ticktext`.
-				  tickvals: [0, 10, 25, 50, 75, 100],
-				  tickfont: {color:'#1F77B4', size:8},
-				  ticksuffix: "%",
-				//   gridcolor: '#88F',
-				},
-				yaxis2: {
-					range: [20,60],
-					overlaying: 'y',
-					tickfont: {color:'#F80', size:8},
-					side: "right",
-					ticksuffix: "°C",
-				  },
-				shapes: [
-					{ // Threshold for 10% battery
-						type: 'line',
-						xref: 'paper',
-						x0: 0,
-						y0: 10.0,
-						x1: 1,
-						y1: 10.0,
-						line:{
-							color: '#F008',
-							width: 3,
-							dash:'dash'
+				options: {
+					scales: {
+						x: {
+							type: 'time',
+							time: {
+								unit: 'hour',
+								tooltipFormat: 'YYYY-MM-DD HH:mm',
+								displayFormats: {
+									hour: 'HH:mm'
+								},
+							},
+							title: {
+								display: false
+							},
+							ticks: {
+								color: '#ccc'
+							},
+							max: startOfDay,
+							max: endOfDay
+						},
+						y: {
+							position: 'left',
+							grid: {
+								drawTicks: true,
+								drawOnChartArea: false,
+								color: '#040'
+							},
+							ticks: {
+								stepSize: 1,
+								color: '#0A0',
+								callback: function(val, idx, ticks) { return val + " ct"; }
+							}
+						},
+						y2: {
+							max: 0,
+							max: 100,
+							position: 'right',
+							grid: {
+								drawTicks: true,
+								drawOnChartArea: true,
+								color: '#236'
+							},
+							ticks: {
+								stepSize: 25,
+								color: '#1f77b4',
+								callback: function(val, idx, ticks) { return val + "%"; }
+							}
+						}
+					},
+					plugins: {
+						title: {
+							display: true,
+							text: 'Spot Prices Over Time',
+							font: { size: 14, lineHeight: 0.5 },
+							color: '#fff'
+						},
+						legend: {
+							display: true,
+							position: 'top',
+							labels: {
+								color: '#ccc',
+								filter: function(legendItem, chartData) {
+									return legendItem.text !== 'HIDDEN';
+								}
+							}
 						}
 					}
-				]
-			  };
-			  
-			  
-			  Plotly.newPlot('diagram', data, layout, {staticPlot: true});
+				},
+				
+				plugins: [backgroundPlugin]
+			};
+
+			this.diagram = new Chart(ctx, configuration);
+		} catch (err) {
+			console.error("Could not create diagram: ",err);
 		}
-	}
+	},
+
+	updateDiagram: function() {
+		console.log(`Updating diagram ${this.diagram}`);
+		console.log(`SpotPrices = ${this.spotPrices}`);
+		console.log(`Storage = ${this.storageData}`);
+
+		try {
+			const currentPriceDataset = [{x: this.spotPrices.currentPriceDate, y:this.spotPrices.currentPrice}];
+			this.diagram.data.datasets[0].data = currentPriceDataset;
+			this.diagram.data.datasets[0].label = `Current: ${this.spotPrices.currentPrice} ${this.spotPrices.unit}`;
+		} catch (error) {
+			console.error("Error updating currentPrice:", error);
+		}
+
+		try {
+			const maxPriceDataset = [{x: this.spotPrices.maxPriceDate, y:this.spotPrices.maxPrice}];
+			this.diagram.data.datasets[1].data = maxPriceDataset;
+			this.diagram.data.datasets[1].label = `Min: ${this.spotPrices.minPrice} ${this.spotPrices.unit}`;
+		} catch (error) {
+			console.error("Error updating maxPrice:", error);
+		}
+
+		try {
+			const maxPriceDataset = [{x: this.spotPrices.maxPriceDate, y:this.spotPrices.maxPrice}];
+			this.diagram.data.datasets[2].data = maxPriceDataset;
+			this.diagram.data.datasets[2].label = `Max: ${this.spotPrices.maxPrice} ${this.spotPrices.unit}`;
+		} catch (error) {
+			console.error("Error updating maxPrice:", error);
+		}
+
+		try {
+			const spotPricesDataset = this.spotPrices.dates.map((d,i) => ({x: d, y:this.spotPrices.prices[i]}));
+			this.diagram.data.datasets[3].data = spotPricesDataset;
+			this.diagram.data.datasets[3].label = `Spot Prices (${this.spotPrices.unit})`;
+		} catch (error) {
+			console.error("Error updating spotPrices:", error);
+		}
+
+		try {
+			const storageDataset = this.storageData.map((val) => ({x: val.timeStamp, y:val.socPercent}));
+			// this.storageData.forEach((val, index, array) => {
+			// 	storageDataset.push({ x: val.timeStamp, y: val.socPercent });
+			// });
+			this.diagram.data.datasets[4].data = storageDataset;
+		} catch (error) {
+			console.error("Error updating storage:", error);
+		}
+
+		this.diagram.update();
+	},
 });
