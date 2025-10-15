@@ -139,7 +139,7 @@ Module.register("MMM-PVMonitor", {
 				spotPriceDataset.push({ x: this.spotPrices.dates[index], y: val });
 			});
 
-			this.setChartData(DataSetIndices.SpotPrices, spotPriceDataset, `Spot Prices (${this.spotPrices.nit})`);
+			this.setChartData(DataSetIndices.SpotPrices, spotPriceDataset, `Spot Prices (${this.spotPrices.unit})`);
 
 			this.setChartData(DataSetIndices.CurrentPrice, [{ x: this.spotPrices.currentPriceDate, y: this.spotPrices.currentPrice }], `Current: ${this.spotPrices.currentPrice} ${this.spotPrices.unit}`);
 			this.setChartData(DataSetIndices.MinPrice, [{ x: this.spotPrices.minPriceDate, y: this.spotPrices.minPrice }], `Min: ${this.spotPrices.minPrice} ${this.spotPrices.unit}`);
