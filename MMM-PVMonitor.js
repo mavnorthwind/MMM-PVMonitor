@@ -1,5 +1,16 @@
+
+// Used to access datasets in the chart
+const DataSetIndices = Object.freeze({
+	CurrentPrice: 0,
+	MinPrice: 1,
+	MaxPrice: 2,
+	SpotPrices: 3,
+	Storage: 4, // Must be behind all others to be drawn in the background
+});
+
+
 /* global Module */
-Module.register("MMM-PVMonitor",{
+Module.register("MMM-PVMonitor", {
 	// Default module config.
 	defaults: {
 		siteId: "123456",
@@ -8,6 +19,7 @@ Module.register("MMM-PVMonitor",{
 		interval: 1000*60*15
 	},
 
+
 	powerFlow: undefined,
 	energy: undefined,
 	autarchy: undefined,
@@ -15,6 +27,7 @@ Module.register("MMM-PVMonitor",{
 	requestCount: 0,
 	lastError: undefined,
 	html: "Loading...",
+
 	siteDetails: {
 		name: "Unknown",
 		peakPower: 1.0,
@@ -38,29 +51,38 @@ Module.register("MMM-PVMonitor",{
 	
 	storageData: undefined,
 
-	// The SoC/spot price diagram
-	diagram: undefined,
-	
-	// Diagram wrapper
-	wrapper: undefined,
+	// Chart wrapper
+	chartWrapper: undefined,
 
+	// The SoC/spot price diagram
+	chart: undefined,
+
+
+	// Sent once after module registration.
+	// Init state, start times, send first socket notification to node_helper.
 	start: function() {
-		
 		console.log(`Starting module: ${this.name} with config ${JSON.stringify(this.config)}`);
 		
 		this.sendSocketNotification('ENERGYCONFIG', this.config);
+
+		this.updateDom(); // Create basic DOM structure
+
+		// Create the diagram after a short delay to ensure the DOM is ready
+		setTimeout(() => {
+			this.chart = this.buildChart();
+			console.log(`Chart created: ${this.chart}`);
+
+			// Initial update
+			this.sendSocketNotification("GETSTORAGEDATA"); // Will trigger an update of the diagram when data is received
+			this.sendSocketNotification("GETSPOTPRICE"); // Will trigger an update of the diagram when data is received
+		}, 1000);
+
 	},
 	
+	// Global notification from MM itself or other modules.
 	notificationReceived: function(notification, payload, sender) {
 		
-		if (notification === "DOM_OBJECTS_CREATED") {
-
-			const dia = document.getElementById("diagramWrapper");
-			const canvas = document.createElement("canvas");
-			canvas.id = "diagram";
-			dia.appendChild(canvas);
-
-			this.createDiagram();
+		if (notification === "DOM_OBJECTS_CREATED") { // All modules' initial getDom() completed
 		}
 		
 		if (notification === "USER_PRESENCE") { // relay to node_helper to update data
@@ -101,15 +123,6 @@ Module.register("MMM-PVMonitor",{
 			this.autarchy = payload;
 			this.updateDom(0);
 		}
-
-		// if (notification === "DIAGRAMDATA") {
-		// 	this.lastError = undefined;
-		// 	this.tempTimes = payload.tempTimes;
-		// 	this.tempValues = payload.tempValues;
-		// 	this.storageTimes = payload.storageTimes;
-		// 	this.storageValues = payload.storageValues;
-		// 	this.updateDom(0);
-		// }
 		
 		if (notification === "TESLA") {
 			//console.log("TESLA Data received: "+JSON.stringify(payload));
@@ -121,18 +134,31 @@ Module.register("MMM-PVMonitor",{
 			this.spotPrices = payload;
 			console.log("SPOTPRICE received:", this.spotPrices);
 
-			this.updateDiagram();
-			this.updateDom(0);
+			const spotPriceDataset = [];
+			this.spotPrices.prices.forEach((val, index, array) => {
+				spotPriceDataset.push({ x: this.spotPrices.dates[index], y: val });
+			});
+
+			this.setChartData(DataSetIndices.SpotPrices, spotPriceDataset, `Spot Prices (${this.spotPrices.priceUnit})`);
+
+			this.setChartData(DataSetIndices.CurrentPrice, [{ x: this.spotPrices.currentPriceDate, y: this.spotPrices.currentPrice }], `Current: ${this.spotPrices.currentPrice} ${this.spotPrices.priceUnit}`);
+			this.setChartData(DataSetIndices.MinPrice, [{ x: this.spotPrices.minPriceDate, y: this.spotPrices.minPrice }], `Min: ${this.spotPrices.minPrice} ${this.spotPrices.priceUnit}`);
+			this.setChartData(DataSetIndices.MaxPrice, [{ x: this.spotPrices.maxPriceDate, y: this.spotPrices.maxPrice }], `Max: ${this.spotPrices.maxPrice} ${this.spotPrices.priceUnit}`);
 		}
 
 		if (notification === "STORAGEDATA") {
 			this.storageData = payload;
-			console.log("STORAGEDATA received");
+			console.log("STORAGEDATA received:", this.storageData);
 
-			this.updateDiagram();
+			const storageDataset = [];
+			this.storageData.forEach((val, index, array) => {
+				storageDataset.push({ x: val.timeStamp, y: val.socPercent });
+			});
+
+			this.setChartData(DataSetIndices.Storage, storageDataset);
 		}
 
-		if (notification === "USER_RESENCE" && payload == true) {
+		if (notification === "USER_PRESENCE" && payload == true) {
 			this.updateDom(500);
 		}
 
@@ -144,6 +170,7 @@ Module.register("MMM-PVMonitor",{
 			this.updateDom(0);
 		}
 	},
+
 
 	getComponentImage: function(component, powerFlow) {
 		var status = "";
@@ -341,64 +368,161 @@ Module.register("MMM-PVMonitor",{
 		return [ "MMM-PVMonitor.css" ];
 	},
 
-	// Override dom generator.
+	// Called after start(), before DOM_OBJECTS_CREATED notification.
+	// After that, whenever you call this.updateDom(), getDom() is called
 	getDom: function() {
 		console.log(`Module ${this.name}: getDom() called`);
 
 		if (this.wrapper == undefined) {
-			this.wrapper = this.buildDom();
+			const html = `<div id='powerflowTable' class='powerflow'><div id="powerflowLoading">Loading Powerflow Table...</div></div>
+				<div id="batteryDiagram" class="battery"><div id="batteryLoading">Loading Battery Diagram...</div><canvas id="batteryChart"></canvas></div>
+				<p id="summary"><div id="summaryLoading">Loading Summary...</div></p>`;
+
+			var wrapper = document.createElement("div");
+			wrapper.id = "MMM-PVMonitorWrapper";
+			wrapper.style = "background-color: darkblue; color: white; padding: 5px; border-radius: 10px; border: 2px solid yellow;";
+			wrapper.innerHTML = html;
+			this.wrapper = wrapper;
+
+			console.log("Created basic DOM structure");
 		}
-		// if (this.powerFlow) {
-		// 	this.html = this.fillTableTemplate(this.powerFlow);
-		// 	this.wrapper.innerHTML = this.html;
-		// 	// We must defer drawing the diagram until the DOM has been updated to contain the target div!
-		// 	setTimeout(() => this.updateDiagram(), 100);
-		// } else {
-		// 	this.wrapper.innerHTML = `<p>Loading... </p>
-		// 			<div id="diagramWrapper" class="diagramWrapper"></div>`;
-		// }
 		return this.wrapper;
 	},
 
-	buildDom: function() {
-		const html = `<div id='powerflowTable' class='powerflow'>Loading Powerflow Table...</div>
-			<div id="batteryDiagram" class="battery"><canvas id="batteryChart"></canvas>Loading Battery Diagram...</div>
-			<p id="summary">Loading Summary</p>`;
+	buildChart: function() {
+		console.log("Building chart");
 
-		var wrapper = document.createElement("div");
-		wrapper.id = "MMM-PVMonitorWrapper";
-		wrapper.innerHTML = html;
+		try {
+			const ctx = document.getElementById("batteryChart").getContext('2d');
+			const config = this.buildChartConfig();
+			const chart = new Chart(ctx, config);
 
-		const ctx = wrapper.getElementById("batteryChart").getContext('2d');
-		const config = buildChartConfig();
-		const chart = new Chart(ctx, config);
+			this.chart = chart;
+			
+			document.getElementById("batteryLoading").remove();
 
-		return wrapper;
+			return chart;
+		} catch (err) {
+			console.error("Error building chart:", err);
+			document.getElementById("batteryLoading").innerHTML = `Error loading chart: ${err}`;
+		}
 	},
 
 	buildChartConfig: function() {
+		const now = new Date();
+		// Create "today 00:00:00" (start of X axis)
+		const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+		// Create "tomorrow 00:00:00" (end of X axis)
+		const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0, 0, 0);
+
 		return {
 			type: 'line',
-          data: {
-            datasets: [
-              {
-                label: 'Beispielwerte',
-                data: [],
-                tension: 0.25,
-                borderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                fill: false,
-                // Styling (kann angepasst werden)
-                borderColor: 'rgb(37,99,235)'
-              }
-            ]
+          	data: {
+				datasets: [
+					{
+						label: `Current`,
+						data: [],
+						backgroundColor: '#ff0',
+						borderColor: '#ff0',
+						borderWidth: 2,
+						pointRadius: 6,
+						pointStyle: 'star',
+					},
+					{
+						label: `Min`,
+						data: [],
+						backgroundColor: '#080',
+						borderColor: '#080',
+						pointStyle: 'triangle',
+					},
+					{
+						label: `Max`,
+						data: [],
+						backgroundColor: '#800',
+						borderColor: '#800',
+						fill: false,
+						tension: 0.1
+					},
+					{
+						label: `Spot Prices (ct/kWh)`,
+						data: [],
+						borderColor: '#07cf39ff',
+						backgroundColor: '#07cf39ff',
+						borderWidth: 2,
+						pointRadius: 0,
+						fill: false,
+						tension: 0.1
+					},
+					{
+						label: `SoC %`,
+						data: [],
+						borderColor: '#1f77b4',
+						backgroundColor: '#184463',
+						borderWidth: 2,
+						pointRadius: 0,
+						fill: true,
+						tension: 0.1,
+						yAxisID: 'y2'
+					},
+				]
           },
           options: {
+			responsive: false,
             maintainAspectRatio: false,
             plugins: {
             },
-            scales: {
+			scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'hour',
+                        tooltipFormat: 'YYYY-MM-DD HH:mm',
+                        displayFormats: {
+                            hour: 'HH:mm'
+                        },
+                    },
+                    title: {
+                        display: false
+                    },
+                    ticks: {
+                        color: '#ccc'
+                    },
+                    min: startOfDay,
+                    max: endOfDay
+                },
+                y: {
+					min: 0,
+					max: 30,
+                    position: 'left',
+                    grid: {
+                        drawTicks: true,
+                        drawOnChartArea: false,
+                        color: '#040'
+                    },
+                    ticks: {
+                        stepSize: 1,
+                        color: '#0A0',
+                        callback: function(val, idx, ticks) { return val + " ct"; }
+                    }
+                },
+                y2: {
+                    min: 0,
+                    max: 100,
+                    position: 'right',
+                    grid: {
+                        drawTicks: true,
+                        drawOnChartArea: true,
+                        color: '#236'
+                    },
+                    ticks: {
+                        stepSize: 25,
+                        color: '#1f77b4',
+                        callback: function(val, idx, ticks) { return val + "%"; }
+                    }
+                }
+            }
+
+        /*    scales: {
               x: {
                 type: 'time', // WICHTIG: Zeitachse
                 time: {
@@ -420,9 +544,18 @@ Module.register("MMM-PVMonitor",{
                   text: 'Wert'
                 }
               }
-            }
+            }*/
           }
 		};
+	},
+
+	setChartData: function(dataSetIndex, data, label) {
+		console.log(`Setting chart data for dataset ${dataSetIndex} with ${data.length} entries`);
+		if (this.chart) {
+			this.chart.data.datasets[dataSetIndex].data = data;
+			if (label) this.chart.data.datasets[dataSetIndex].label = label;
+			this.chart.update();
+		}
 	},
 
 	getScripts: function() {
@@ -437,25 +570,9 @@ Module.register("MMM-PVMonitor",{
 	},
 
 
-	
+/*
 	createDiagram: function() {
 		try {
-			if (!window.Chart) {
-				console.error("Chart.js not loaded yet!");
-				return;
-			}
-
-			if (Chart._adapters && Chart._adapters._date && !Chart._adapters.date) {
-				Chart._adapters.date = Chart._adapters._date;
-				console.warn("Manually registered Chart.js date adapter:", Chart._adapters.date);
-			}
-
-			if (!Chart._adapters?.date?.parse) {
-				console.error("Date adapter missing — Chart.js adapters:", Chart._adapters);
-				return;
-			}
-
-
 			console.log("Creating diagram");
 			const ctx = document.getElementById("diagram").getContext('2d');
 
@@ -611,6 +728,7 @@ Module.register("MMM-PVMonitor",{
 			console.error("Could not create diagram: ",err);
 		}
 	},
+*/
 
 	updateDiagram: function() {
 		console.log(`Updating diagram ${this.diagram}`);

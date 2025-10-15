@@ -121,3 +121,8 @@
 .diagram {
     height: 150px;
 }
+
+#batteryChart {
+    width: 600px;
+    height: 200px;
+}

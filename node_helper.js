@@ -68,12 +68,25 @@ module.exports = NodeHelper.create({
 			case "ENERGYCONFIG":
 				this.config = payload;
 				
-				this.solarEdgeApi = new SolaredgeAPI(this.config.siteId, this.config.apiKey, this.config.inverterId);
+				try {
+					console.log("Creating SolaredgeAPI instance");
+					this.solarEdgeApi = new SolaredgeAPI(this.config.siteId, this.config.apiKey, this.config.inverterId);
+				} catch (error) {
+					console.error(`Error creating SolaredgeAPI instance: ${error}`);
+				}
 
-				this.spotPrices = new SpotPrices();
-				if (!this.spotPrices.hasPrices || this.spotPrices.maxDate < new Date()) // No or old prices
-					await this.spotPrices.updateSpotPricesAsync();
+				try {
+					console.log("Creating SpotPrices instance");
+					this.spotPrices = new SpotPrices();
 
+					if (!this.spotPrices.hasPrices || this.spotPrices.maxDate < new Date()) // No or old prices
+					{	console.log("Fetching spot prices");
+						await this.spotPrices.updateSpotPricesAsync();
+					}
+				} catch(error) {
+					console.error(`Request for spotPrice returned error  ${error}`);
+				}
+/*
 				if (this.timer)
 					clearInterval(this.timer);
 
@@ -107,11 +120,24 @@ module.exports = NodeHelper.create({
 				this.fetchDiagramData();
 				this.fetchSpotPrice();
 				this.teslaThrottler.forceExecute(() => this.fetchTeslaCharge());
+*/
 				break;
+
+			case "GETSTORAGEDATA":
+				console.log(`node_helper ${this.name}: GETSTORAGEDATA`);
+				await this.fetchStorageDataAsync();
+				break;
+			case "GETSPOTPRICE":
+				console.log(`node_helper ${this.name}: GETSPOTPRICE`);
+				await this.fetchSpotPriceAsync();
+				break;
+
 			case "USER_PRESENCE":
 				console.log(`node_helper ${this.name}: USER_PRESENCE ${payload}`);
-				if (payload)
-					this.throttler.execute(() => this.fetchPowerFlow(), (r) => console.log("PowerFlow update throttled:"+r));
+				if (payload) // User is present
+				{
+					// this.throttler.execute(() => this.fetchPowerFlow(), (r) => console.log("PowerFlow update throttled:"+r));
+				}
 				break;
 		}
 	},
@@ -238,13 +264,17 @@ module.exports = NodeHelper.create({
 				console.log("Caching new spot prices");
 				await this.spotPrices.updateSpotPricesAsync();
 			}
-			
+
 			this.sendSocketNotification("SPOTPRICE", {
-				currentSpotPrice: this.spotPrices.currentPrice,
-				priceUnit: this.spotPrices.unit,
-				updateTimestamp: this.spotPrices.currentPriceDate,
+				currentPrice: this.spotPrices.currentPrice,
+				currentPriceDate: this.spotPrices.currentPriceDate,
+				minPrice: this.spotPrices.minPrice,
+				minPriceDate: this.spotPrices.minPriceDate,
+				maxPrice: this.spotPrices.maxPrice,
+				maxPriceDate: this.spotPrices.maxPriceDate,
 				prices: this.spotPrices.prices,
-				dates: this.spotPrices.dates
+				dates: this.spotPrices.dates,
+				unit: this.spotPrices.unit,
 			});
 			console.log(`node_helper ${this.name}: sent SPOTPRICE`);
 		} catch(error) {

@@ -142,7 +142,7 @@ class SpotPrices {
         const spotPricesUrl = `https://api.energy-charts.info/price?bzn=DE-LU&start=${start}&end=${end}`;
 
         try {
-            const res = await axios.get(spotPricesUrl);
+            const res = await axios.get(spotPricesUrl, { timeout: 30000 }); // Spot prices API can be slow
             console.debug(`Got spot price data`);
 
             res.data.updateTimestamp = now;
@@ -152,7 +152,6 @@ class SpotPrices {
             this.#readCachedPrices();
         } catch(error) {
             console.error(`Request for spot prices from ${spotPricesUrl} returned error:`, error);
-            throw error;
         }
     }
 
