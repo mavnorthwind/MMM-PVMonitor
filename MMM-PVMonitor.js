@@ -139,11 +139,11 @@ Module.register("MMM-PVMonitor", {
 				spotPriceDataset.push({ x: this.spotPrices.dates[index], y: val });
 			});
 
-			this.setChartData(DataSetIndices.SpotPrices, spotPriceDataset, `Spot Prices (${this.spotPrices.priceUnit})`);
+			this.setChartData(DataSetIndices.SpotPrices, spotPriceDataset, `Spot Prices (${this.spotPrices.nit})`);
 
-			this.setChartData(DataSetIndices.CurrentPrice, [{ x: this.spotPrices.currentPriceDate, y: this.spotPrices.currentPrice }], `Current: ${this.spotPrices.currentPrice} ${this.spotPrices.priceUnit}`);
-			this.setChartData(DataSetIndices.MinPrice, [{ x: this.spotPrices.minPriceDate, y: this.spotPrices.minPrice }], `Min: ${this.spotPrices.minPrice} ${this.spotPrices.priceUnit}`);
-			this.setChartData(DataSetIndices.MaxPrice, [{ x: this.spotPrices.maxPriceDate, y: this.spotPrices.maxPrice }], `Max: ${this.spotPrices.maxPrice} ${this.spotPrices.priceUnit}`);
+			this.setChartData(DataSetIndices.CurrentPrice, [{ x: this.spotPrices.currentPriceDate, y: this.spotPrices.currentPrice }], `Current: ${this.spotPrices.currentPrice} ${this.spotPrices.unit}`);
+			this.setChartData(DataSetIndices.MinPrice, [{ x: this.spotPrices.minPriceDate, y: this.spotPrices.minPrice }], `Min: ${this.spotPrices.minPrice} ${this.spotPrices.unit}`);
+			this.setChartData(DataSetIndices.MaxPrice, [{ x: this.spotPrices.maxPriceDate, y: this.spotPrices.maxPrice }], `Max: ${this.spotPrices.maxPrice} ${this.spotPrices.unit}`);
 		}
 
 		if (notification === "STORAGEDATA") {
