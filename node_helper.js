@@ -158,7 +158,8 @@ module.exports = NodeHelper.create({
 				console.log(`node_helper ${this.name}: USER_PRESENCE ${payload}`);
 				if (payload) // User is present
 				{
-					await this.fetchStorageDataAsync();
+					// Will be too often
+					//await this.fetchStorageDataAsync();
 					await this.fetchSpotPriceAsync();
 				}
 				break;

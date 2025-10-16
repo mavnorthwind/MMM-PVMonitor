@@ -424,14 +424,14 @@ Module.register("MMM-PVMonitor", {
 						backgroundColor: '#ff0',
 						borderColor: '#ff0',
 						borderWidth: 1,
-						pointRadius: 4,
+						pointRadius: 5,
 						pointStyle: 'star',
 					},
 					{	// Min
 						label: `Min`,
 						data: [],
-						backgroundColor: '#080',
-						borderColor: '#080',
+						backgroundColor: '#07cf39ff',
+						borderColor: '#07cf39ff',
 						pointRadius: 5,
 						pointStyle: 'rectRot',
 					},
@@ -446,8 +446,8 @@ Module.register("MMM-PVMonitor", {
 					{	// Spot Prices
 						label: "HIDDEN",
 						data: [],
-						borderColor: '#07cf39ff',
-						backgroundColor: '#07cf39ff',
+						borderColor: '#080',
+						backgroundColor: '#080',
 						borderWidth: 2,
 						pointRadius: 0,
 						fill: false,
@@ -535,30 +535,6 @@ Module.register("MMM-PVMonitor", {
                     }
                 }
             }
-
-        /*    scales: {
-              x: {
-                type: 'time', // WICHTIG: Zeitachse
-                time: {
-                  // 'unit' legt das Raster/Labeling nahe. Die Adapter übernimmt Parsing/Formatting.
-                  unit: 'hour',
-                  displayFormats: {
-                    hour: 'HH:mm'
-                  }
-                },
-                title: {
-                  display: true,
-                  text: 'Datum'
-                }
-              },
-              y: {
-                beginAtZero: false,
-                title: {
-                  display: true,
-                  text: 'Wert'
-                }
-              }
-            }*/
           }
 		};
 	},
@@ -582,215 +558,4 @@ Module.register("MMM-PVMonitor", {
 			"https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"
 		];
 	},
-
-
-/*
-	createDiagram: function() {
-		try {
-			console.log("Creating diagram");
-			const ctx = document.getElementById("diagram").getContext('2d');
-
-			const currentPriceDataset = [];
-			const minPriceDataset = [];
-			const maxPriceDataset = [];
-			const spotPricesDataset = [];
-			const storageDataset = [];
-
-			const now = new Date();
-			// Create "today 00:00:00"
-			const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-			// Create "tomorrow 00:00:00"
-			const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0, 0, 0);
-
-			const backgroundPlugin = {
-				id: 'customCanvasBackgroundColor',
-				beforeDraw: (chart) => {
-					const { ctx, chartArea } = chart;
-					ctx.save();
-					ctx.fillStyle = '#111';
-					ctx.fillRect(chartArea.left, chartArea.top, chartArea.width, chartArea.height);
-					ctx.restore();
-				}
-	    	};
-
-			const configuration = {
-				type: 'line',
-				data: {
-					datasets: [
-						{
-							label: `Current: ???`,
-							data: currentPriceDataset,
-							backgroundColor: '#ff0',
-							borderColor: '#ff0',
-							borderWidth: 2,
-							pointRadius: 6,
-							pointStyle: 'star',
-						},
-						{
-							label: `Min: ???`,
-							data: minPriceDataset,
-							backgroundColor: '#080',
-							borderColor: '#080',
-							pointStyle: 'triangle',
-						},
-						{
-							label: `Max: ???`,
-							data: maxPriceDataset,
-							backgroundColor: '#800',
-							borderColor: '#800',
-							fill: false,
-							tension: 0.1
-						},
-						{
-							type: 'line',
-							label: `Spot Prices (???)`,
-							data: spotPricesDataset,
-							borderColor: '#07cf39ff',
-							backgroundColor: '#07cf39ff',
-							borderWidth: 2,
-							pointRadius: 0,
-							fill: false,
-							tension: 0.1
-						},
-						{
-							label: `SoC %`,
-							data: storageDataset,
-							borderColor: '#1f77b4',
-							backgroundColor: '#184463',
-							borderWidth: 2,
-							pointRadius: 0,
-							fill: true,
-							tension: 0.1,
-							yAxisID: 'y2'
-						}
-					]
-				},
-				options: {
-					scales: {
-						x: {
-							type: 'time',
-							time: {
-								unit: 'hour',
-								tooltipFormat: 'YYYY-MM-DD HH:mm',
-								displayFormats: {
-									hour: 'HH:mm'
-								},
-							},
-							title: {
-								display: false
-							},
-							ticks: {
-								color: '#ccc'
-							},
-							max: startOfDay,
-							max: endOfDay
-						},
-						y: {
-							position: 'left',
-							grid: {
-								drawTicks: true,
-								drawOnChartArea: false,
-								color: '#040'
-							},
-							ticks: {
-								stepSize: 1,
-								color: '#0A0',
-								callback: function(val, idx, ticks) { return val + " ct"; }
-							}
-						},
-						y2: {
-							max: 0,
-							max: 100,
-							position: 'right',
-							grid: {
-								drawTicks: true,
-								drawOnChartArea: true,
-								color: '#236'
-							},
-							ticks: {
-								stepSize: 25,
-								color: '#1f77b4',
-								callback: function(val, idx, ticks) { return val + "%"; }
-							}
-						}
-					},
-					plugins: {
-						title: {
-							display: true,
-							text: 'Spot Prices Over Time',
-							font: { size: 14, lineHeight: 0.5 },
-							color: '#fff'
-						},
-						legend: {
-							display: true,
-							position: 'top',
-							labels: {
-								color: '#ccc',
-								filter: function(legendItem, chartData) {
-									return legendItem.text !== 'HIDDEN';
-								}
-							}
-						}
-					}
-				},
-				
-				plugins: [backgroundPlugin]
-			};
-
-			this.diagram = new Chart(ctx, configuration);
-		} catch (err) {
-			console.error("Could not create diagram: ",err);
-		}
-	},
-*/
-
-	// updateDiagram: function() {
-	// 	console.log(`Updating diagram ${this.diagram}`);
-	// 	console.log(`SpotPrices = ${this.spotPrices}`);
-	// 	console.log(`Storage = ${this.storageData}`);
-
-	// 	try {
-	// 		const currentPriceDataset = [{x: this.spotPrices.currentPriceDate, y:this.spotPrices.currentPrice}];
-	// 		this.diagram.data.datasets[0].data = currentPriceDataset;
-	// 		this.diagram.data.datasets[0].label = `Current: ${this.spotPrices.currentPrice} ${this.spotPrices.unit}`;
-	// 	} catch (error) {
-	// 		console.error("Error updating currentPrice:", error);
-	// 	}
-
-	// 	try {
-	// 		const maxPriceDataset = [{x: this.spotPrices.maxTodayPriceDate, y:this.spotPrices.maxTodayPrice}];
-	// 		this.diagram.data.datasets[1].data = maxPriceDataset;
-	// 		this.diagram.data.datasets[1].label = `Max: ${this.spotPrices.maxTodayPrice}ct`;
-	// 	} catch (error) {
-	// 		console.error("Error updating maxPrice:", error);
-	// 	}
-
-	// 	try {
-	// 		const minPriceDataset = [{x: this.spotPrices.minPriceDate, y:this.spotPrices.maxPrice}];
-	// 		this.diagram.data.datasets[2].data = maxPriceDataset;
-	// 		this.diagram.data.datasets[2].label = `Max: ${this.spotPrices.maxPrice} ${this.spotPrices.unit}`;
-	// 	} catch (error) {
-	// 		console.error("Error updating maxPrice:", error);
-	// 	}
-
-	// 	try {
-	// 		const spotPricesDataset = this.spotPrices.dates.map((d,i) => ({x: d, y:this.spotPrices.prices[i]}));
-	// 		this.diagram.data.datasets[3].data = spotPricesDataset;
-	// 		this.diagram.data.datasets[3].label = `Spot Prices (${this.spotPrices.unit})`;
-	// 	} catch (error) {
-	// 		console.error("Error updating spotPrices:", error);
-	// 	}
-
-	// 	try {
-	// 		const storageDataset = this.storageData.map((val) => ({x: val.timeStamp, y:val.socPercent}));
-	// 		// this.storageData.forEach((val, index, array) => {
-	// 		// 	storageDataset.push({ x: val.timeStamp, y: val.socPercent });
-	// 		// });
-	// 		this.diagram.data.datasets[4].data = storageDataset;
-	// 	} catch (error) {
-	// 		console.error("Error updating storage:", error);
-	// 	}
-
-	// 	this.diagram.update();
-	// },
 });
