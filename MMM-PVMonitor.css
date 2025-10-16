@@ -122,6 +122,15 @@
     height: 150px;
 }
 
+#MMM-PVMonitorWrapper {
+    /* background-color: darkblue; */
+    color: white;
+    padding: 5px;
+    border-radius: 10px;
+    border: 2px solid white;
+}
+
+
 #batteryChart {
     width: 400px;
     height: 200px;

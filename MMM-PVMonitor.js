@@ -380,7 +380,6 @@ Module.register("MMM-PVMonitor", {
 
 			var wrapper = document.createElement("div");
 			wrapper.id = "MMM-PVMonitorWrapper";
-			wrapper.style = "background-color: darkblue; color: white; padding: 5px; border-radius: 10px; border: 2px solid yellow;";
 			wrapper.innerHTML = html;
 			this.wrapper = wrapper;
 
@@ -419,31 +418,32 @@ Module.register("MMM-PVMonitor", {
 			type: 'line',
           	data: {
 				datasets: [
-					{
+					{	// Current
 						label: `Current`,
 						data: [],
 						backgroundColor: '#ff0',
 						borderColor: '#ff0',
-						borderWidth: 2,
-						pointRadius: 6,
+						borderWidth: 1,
+						pointRadius: 4,
 						pointStyle: 'star',
 					},
-					{
+					{	// Min
 						label: `Min`,
 						data: [],
 						backgroundColor: '#080',
 						borderColor: '#080',
-						pointStyle: 'triangle',
+						pointRadius: 5,
+						pointStyle: 'rectRot',
 					},
-					{
+					{	// Max
 						label: `Max`,
 						data: [],
 						backgroundColor: '#800',
 						borderColor: '#800',
-						fill: false,
-						tension: 0.1
+						pointRadius: 5,
+						pointStyle: 'rectRot',
 					},
-					{
+					{	// Spot Prices
 						label: "HIDDEN",
 						data: [],
 						borderColor: '#07cf39ff',
@@ -453,7 +453,7 @@ Module.register("MMM-PVMonitor", {
 						fill: false,
 						tension: 0.1
 					},
-					{
+					{	// Storage
 						label: "HIDDEN",
 						data: [],
 						borderColor: '#1f77b4',
@@ -491,8 +491,15 @@ Module.register("MMM-PVMonitor", {
                     title: {
                         display: false
                     },
+					grid: {
+						display: true,
+						drawOnChartArea: true,
+						color: '#666',
+					},
                     ticks: {
-                        color: '#ccc'
+                        color: '#ccc',
+						font: { size: 10 },
+						maxRotation: 0,
                     },
                     min: startOfDay,
                     max: endOfDay
