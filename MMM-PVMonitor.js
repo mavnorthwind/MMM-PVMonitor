@@ -139,11 +139,11 @@ Module.register("MMM-PVMonitor", {
 				spotPriceDataset.push({ x: this.spotPrices.dates[index], y: val });
 			});
 
-			this.setChartData(DataSetIndices.SpotPrices, spotPriceDataset, `Spot Prices (${this.spotPrices.unit})`);
+			this.setChartData(DataSetIndices.SpotPrices, spotPriceDataset);
 
-			this.setChartData(DataSetIndices.CurrentPrice, [{ x: this.spotPrices.currentPriceDate, y: this.spotPrices.currentPrice }], `Current: ${this.spotPrices.currentPrice} ${this.spotPrices.unit}`);
-			this.setChartData(DataSetIndices.MinPrice, [{ x: this.spotPrices.minPriceDate, y: this.spotPrices.minPrice }], `Min: ${this.spotPrices.minPrice} ${this.spotPrices.unit}`);
-			this.setChartData(DataSetIndices.MaxPrice, [{ x: this.spotPrices.maxPriceDate, y: this.spotPrices.maxPrice }], `Max: ${this.spotPrices.maxPrice} ${this.spotPrices.unit}`);
+			this.setChartData(DataSetIndices.CurrentPrice, [{ x: this.spotPrices.currentPriceDate, y: this.spotPrices.currentPrice }], `Current: ${this.spotPrices.currentPrice}ct`);
+			this.setChartData(DataSetIndices.MinPrice, [{ x: this.spotPrices.minPriceDate, y: this.spotPrices.minPrice }], `Min: ${this.spotPrices.minPrice}ct`);
+			this.setChartData(DataSetIndices.MaxPrice, [{ x: this.spotPrices.maxPriceDate, y: this.spotPrices.maxPrice }], `Max: ${this.spotPrices.maxPrice}ct`);
 		}
 
 		if (notification === "STORAGEDATA") {
@@ -444,7 +444,7 @@ Module.register("MMM-PVMonitor", {
 						tension: 0.1
 					},
 					{
-						label: `Spot Prices (ct/kWh)`,
+						label: "HIDDEN",
 						data: [],
 						borderColor: '#07cf39ff',
 						backgroundColor: '#07cf39ff',
@@ -454,7 +454,7 @@ Module.register("MMM-PVMonitor", {
 						tension: 0.1
 					},
 					{
-						label: `SoC %`,
+						label: "HIDDEN",
 						data: [],
 						borderColor: '#1f77b4',
 						backgroundColor: '#184463',
@@ -470,6 +470,13 @@ Module.register("MMM-PVMonitor", {
 			responsive: false,
             maintainAspectRatio: false,
             plugins: {
+				legend: {
+					labels: {
+						filter: function(legendItem, chartData) {
+							return legendItem.text !== 'HIDDEN';
+						}
+					}
+				}
             },
 			scales: {
                 x: {
