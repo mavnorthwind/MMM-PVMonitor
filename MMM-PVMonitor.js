@@ -142,8 +142,8 @@ Module.register("MMM-PVMonitor", {
 			this.setChartData(DataSetIndices.SpotPrices, spotPriceDataset);
 
 			this.setChartData(DataSetIndices.CurrentPrice, [{ x: this.spotPrices.currentPriceDate, y: this.spotPrices.currentPrice }], `Current: ${this.spotPrices.currentPrice}ct`);
-			this.setChartData(DataSetIndices.MinPrice, [{ x: this.spotPrices.minPriceDate, y: this.spotPrices.minPrice }], `Min: ${this.spotPrices.minPrice}ct`);
-			this.setChartData(DataSetIndices.MaxPrice, [{ x: this.spotPrices.maxPriceDate, y: this.spotPrices.maxPrice }], `Max: ${this.spotPrices.maxPrice}ct`);
+			this.setChartData(DataSetIndices.MinPrice, [{ x: this.spotPrices.minTodayPriceDate, y: this.spotPrices.minTodayPrice }], `Min: ${this.spotPrices.minTodayPrice}ct`);
+			this.setChartData(DataSetIndices.MaxPrice, [{ x: this.spotPrices.maxTodayPriceDate, y: this.spotPrices.maxTodayPrice }], `Max: ${this.spotPrices.maxTodayPrice}ct`);
 		}
 
 		if (notification === "STORAGEDATA") {
@@ -737,53 +737,53 @@ Module.register("MMM-PVMonitor", {
 	},
 */
 
-	updateDiagram: function() {
-		console.log(`Updating diagram ${this.diagram}`);
-		console.log(`SpotPrices = ${this.spotPrices}`);
-		console.log(`Storage = ${this.storageData}`);
+	// updateDiagram: function() {
+	// 	console.log(`Updating diagram ${this.diagram}`);
+	// 	console.log(`SpotPrices = ${this.spotPrices}`);
+	// 	console.log(`Storage = ${this.storageData}`);
 
-		try {
-			const currentPriceDataset = [{x: this.spotPrices.currentPriceDate, y:this.spotPrices.currentPrice}];
-			this.diagram.data.datasets[0].data = currentPriceDataset;
-			this.diagram.data.datasets[0].label = `Current: ${this.spotPrices.currentPrice} ${this.spotPrices.unit}`;
-		} catch (error) {
-			console.error("Error updating currentPrice:", error);
-		}
+	// 	try {
+	// 		const currentPriceDataset = [{x: this.spotPrices.currentPriceDate, y:this.spotPrices.currentPrice}];
+	// 		this.diagram.data.datasets[0].data = currentPriceDataset;
+	// 		this.diagram.data.datasets[0].label = `Current: ${this.spotPrices.currentPrice} ${this.spotPrices.unit}`;
+	// 	} catch (error) {
+	// 		console.error("Error updating currentPrice:", error);
+	// 	}
 
-		try {
-			const maxPriceDataset = [{x: this.spotPrices.maxPriceDate, y:this.spotPrices.maxPrice}];
-			this.diagram.data.datasets[1].data = maxPriceDataset;
-			this.diagram.data.datasets[1].label = `Min: ${this.spotPrices.minPrice} ${this.spotPrices.unit}`;
-		} catch (error) {
-			console.error("Error updating maxPrice:", error);
-		}
+	// 	try {
+	// 		const maxPriceDataset = [{x: this.spotPrices.maxTodayPriceDate, y:this.spotPrices.maxTodayPrice}];
+	// 		this.diagram.data.datasets[1].data = maxPriceDataset;
+	// 		this.diagram.data.datasets[1].label = `Max: ${this.spotPrices.maxTodayPrice}ct`;
+	// 	} catch (error) {
+	// 		console.error("Error updating maxPrice:", error);
+	// 	}
 
-		try {
-			const maxPriceDataset = [{x: this.spotPrices.maxPriceDate, y:this.spotPrices.maxPrice}];
-			this.diagram.data.datasets[2].data = maxPriceDataset;
-			this.diagram.data.datasets[2].label = `Max: ${this.spotPrices.maxPrice} ${this.spotPrices.unit}`;
-		} catch (error) {
-			console.error("Error updating maxPrice:", error);
-		}
+	// 	try {
+	// 		const minPriceDataset = [{x: this.spotPrices.minPriceDate, y:this.spotPrices.maxPrice}];
+	// 		this.diagram.data.datasets[2].data = maxPriceDataset;
+	// 		this.diagram.data.datasets[2].label = `Max: ${this.spotPrices.maxPrice} ${this.spotPrices.unit}`;
+	// 	} catch (error) {
+	// 		console.error("Error updating maxPrice:", error);
+	// 	}
 
-		try {
-			const spotPricesDataset = this.spotPrices.dates.map((d,i) => ({x: d, y:this.spotPrices.prices[i]}));
-			this.diagram.data.datasets[3].data = spotPricesDataset;
-			this.diagram.data.datasets[3].label = `Spot Prices (${this.spotPrices.unit})`;
-		} catch (error) {
-			console.error("Error updating spotPrices:", error);
-		}
+	// 	try {
+	// 		const spotPricesDataset = this.spotPrices.dates.map((d,i) => ({x: d, y:this.spotPrices.prices[i]}));
+	// 		this.diagram.data.datasets[3].data = spotPricesDataset;
+	// 		this.diagram.data.datasets[3].label = `Spot Prices (${this.spotPrices.unit})`;
+	// 	} catch (error) {
+	// 		console.error("Error updating spotPrices:", error);
+	// 	}
 
-		try {
-			const storageDataset = this.storageData.map((val) => ({x: val.timeStamp, y:val.socPercent}));
-			// this.storageData.forEach((val, index, array) => {
-			// 	storageDataset.push({ x: val.timeStamp, y: val.socPercent });
-			// });
-			this.diagram.data.datasets[4].data = storageDataset;
-		} catch (error) {
-			console.error("Error updating storage:", error);
-		}
+	// 	try {
+	// 		const storageDataset = this.storageData.map((val) => ({x: val.timeStamp, y:val.socPercent}));
+	// 		// this.storageData.forEach((val, index, array) => {
+	// 		// 	storageDataset.push({ x: val.timeStamp, y: val.socPercent });
+	// 		// });
+	// 		this.diagram.data.datasets[4].data = storageDataset;
+	// 	} catch (error) {
+	// 		console.error("Error updating storage:", error);
+	// 	}
 
-		this.diagram.update();
-	},
+	// 	this.diagram.update();
+	// },
 });

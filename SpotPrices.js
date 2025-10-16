@@ -20,8 +20,8 @@ class SpotPrices {
     #minDate = undefined;
     #maxDate = undefined;
 
-    #minPriceIndex = undefined;
-    #maxPriceIndex = undefined;
+    #minTodayPriceIndex = undefined;
+    #maxTodayPriceIndex = undefined;
 
     /**
      * Create a new SpotPrices instance
@@ -58,29 +58,11 @@ class SpotPrices {
     get minDate() { return this.#minDate; }
     get maxDate() { return this.#maxDate; }
 
-    get minPrice() { return this.#prices[this.#minPriceIndex]; }
-    get maxPrice() { return this.#prices[this.#maxPriceIndex]; }
+    get minTodayPrice() { return this.#prices[this.#minTodayPriceIndex]; }
+    get maxTodayPrice() { return this.#prices[this.#maxTodayPriceIndex]; }
 
-    get minPriceDate() { return this.#dates[this.#minPriceIndex]; }
-    get maxPriceDate() { return this.#dates[this.#maxPriceIndex]; }
-
-    /**
-     * Find the minimum price in the future of the dataset
-     */
-    get minFuturePrice() {
-        const nowIndex = this.#findIndexOfEntryEarlierOrEqual(this.#dates);
-        const minFuturePriceIndex = this.#findIndexOfMinValue(this.#takeEndFrom(this.#prices, nowIndex));
-        return this.#prices[nowIndex + minFuturePriceIndex];
-    }
-
-    /**
-     * Find the Date for the minimum price in the future of the dataset
-     */
-    get minFuturePriceDate() {
-        const nowIndex = this.#findIndexOfEntryEarlierOrEqual(this.#dates);
-        const minFuturePriceIndex = this.#findIndexOfMinValue(this.#takeEndFrom(this.#prices, nowIndex));
-        return this.#dates[nowIndex + minFuturePriceIndex];
-    }
+    get minTodayPriceDate() { return this.#dates[this.#minTodayPriceIndex]; }
+    get maxTodayPriceDate() { return this.#dates[this.#maxTodayPriceIndex]; }
 
     /**
      * Current spot price
@@ -186,31 +168,53 @@ class SpotPrices {
     }
 
     /**
-     * Find the index of the minimum value in array
-     * @param {Array} array 
-     * @returns Index 
+     * Get index of minimum and maximum value of today's prices
+     * @param {Date[]} dates 
+     * @param {Number[]} prices 
+     * @returns {minIndex, maxIndex}
      */
-    #findIndexOfMinValue(array) {
-        const minIndex = array.reduce(
-            (best, current, idx) =>
-                current < array[best] ? idx : best,
-            0
-        );
-        return minIndex;
-    }
+    #getTodayHighLowIndex(dates, prices) {
+        if (!Array.isArray(dates) || !Array.isArray(prices)) {
+            throw new TypeError('dates und prices müssen Arrays sein');
+        }
+        if (dates.length !== prices.length) {
+            throw new Error('dates und prices müssen die gleiche Länge haben');
+        }
 
-    /**
-     * Find the index of the maximum value in array
-     * @param {Array} array 
-     * @returns Index 
-     */
-    #findIndexOfMaxValue(array) {
-        const maxIndex = array.reduce(
-            (best, current, idx) =>
-                current > array[best] ? idx : best,
-            0
-        );
-        return maxIndex;
+        // heutiges Datum (lokal)
+        const now = new Date();
+        const today = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate();
+
+        let highestIndex = -1;
+        let lowestIndex = -1;
+        let highestPrice = -Infinity;
+        let lowestPrice = Infinity;
+
+        for (let i = 0; i < dates.length; i++) {
+            const d = dates[i];
+            if (!(d instanceof Date) || isNaN(d)) {
+                throw new Error(`Ungültiges Datum an Index ${i}`);
+            }
+
+            const key = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
+            if (key === today) {
+                const p = prices[i];
+                if (typeof p !== 'number' || isNaN(p)) {
+                    throw new Error(`Ungültiger Preis an Index ${i}`);
+                }
+
+                if (p > highestPrice) {
+                    highestPrice = p;
+                    highestIndex = i;
+                }
+                if (p < lowestPrice) {
+                    lowestPrice = p;
+                    lowestIndex = i;
+                }
+            }
+        }
+
+        return { highestIndex, lowestIndex };
     }
 
     /**
@@ -235,9 +239,12 @@ class SpotPrices {
 
                 this.#minDate = new Date(Math.min(...this.#dates));
                 this.#maxDate = new Date(Math.max(...this.#dates));
-                this.#minPriceIndex = this.#findIndexOfMinValue(this.#prices);
-                this.#maxPriceIndex = this.#findIndexOfMaxValue(this.#prices);
-                
+
+                const { highestIndex, lowestIndex } = this.#getTodayHighLowIndex(this.#dates, this.#prices);
+
+                this.#minTodayPriceIndex = lowestIndex;
+                this.#maxTodayPriceIndex = highestIndex;
+
                 this.#updateTimestamp = this.#spotpricedata.updateTimestamp;
                 return true;
             }
