@@ -75,6 +75,8 @@ Module.register("MMM-PVMonitor", {
 			// Initial update
 			this.sendSocketNotification("GETSTORAGEDATA"); // Will trigger an update of the diagram when data is received
 			this.sendSocketNotification("GETSPOTPRICE"); // Will trigger an update of the diagram when data is received
+
+			this.sendSocketNotification("GETSITEDETAILS");
 		}, 1000);
 
 	},
@@ -483,7 +485,6 @@ Module.register("MMM-PVMonitor", {
                     type: 'time',
                     time: {
                         unit: 'hour',
-                        tooltipFormat: 'YYYY-MM-DD HH:mm',
                         displayFormats: {
                             hour: 'HH:mm'
                         },

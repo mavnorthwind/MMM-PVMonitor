@@ -9,7 +9,7 @@ const fs = require('fs');
 const SolaredgeAPI = require("./SolaredgeAPI.js");
 const SpotPrices = require("./SpotPrices.js");
 const spawn = require('child_process').spawn;
-//import schedule from 'node-schedule';
+const schedule = require('node-schedule');
 
 module.exports = NodeHelper.create({
 	config: undefined,
@@ -75,11 +75,10 @@ module.exports = NodeHelper.create({
 					console.log("Creating SolaredgeAPI instance");
 					this.solarEdgeApi = new SolaredgeAPI(this.config.siteId, this.config.apiKey, this.config.inverterId);
 
-					// Done in USER_PRESENCE
-					// update spot prices every 15 minutes - cheap since we do caching
-					// setInterval(async () => {
-					// 	await this.fetchStorageDataAsync();
-					// }, 15*60*1000);
+					setInterval(async () => {
+						console.log("Scheduled job: Fetching storage data at " + new Date().toLocaleTimeString());
+						await this.fetchStorageDataAsync();
+					}, 15*60*1000);
 				} catch (error) {
 					console.error(`Error creating SolaredgeAPI instance: ${error}`);
 				}
@@ -94,16 +93,16 @@ module.exports = NodeHelper.create({
 						await this.spotPrices.updateSpotPricesAsync();
 					}
 
-					/*
-					schedule.scheduleJob('0 17 * * *', async () => { // Every day at 17:00
+					
+					schedule.scheduleJob('3 17 * * *', async () => { // Every day at 17:03
 						console.log(`Scheduled job: Fetching spot prices at ${new Date().toLocaleTimeString()}`);
 						await this.spotPrices.updateSpotPricesAsync(0,1);
 					});
-					*/
+					
 					// update spot prices every 15 minutes - cheap since we do caching
-					// setInterval(async () => {
-					// 	await this.fetchSpotPriceAsync();
-					// }, 15*60*1000);
+					setInterval(async () => {
+					 	await this.fetchSpotPriceAsync();
+					}, 15*60*1000);
 
 				} catch(error) {
 					console.error(`Request for spotPrice returned error  ${error}`);
@@ -152,6 +151,10 @@ module.exports = NodeHelper.create({
 			case "GETSPOTPRICE":
 				console.log(`node_helper ${this.name}: GETSPOTPRICE`);
 				await this.fetchSpotPriceAsync();
+				break;
+			case "GETSITEDETAILS":
+				console.log(`node_helper ${this.name}: GETSITEDETAILS`);
+				await this.fetchSiteDetailsAsync();
 				break;
 
 			case "USER_PRESENCE":
@@ -202,9 +205,7 @@ module.exports = NodeHelper.create({
 		this.sendSocketNotification("PRODUCTION", production);
 	},
 
-	fetchSiteDetails: async function() {
-		
-
+	fetchSiteDetailsAsync: async function() {
 		if (!this.config){
 			console.error(`node_helper ${this.name}:Configuration has not been set!`);
 			return;
