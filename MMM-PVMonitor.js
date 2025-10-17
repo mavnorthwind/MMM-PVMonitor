@@ -507,7 +507,7 @@ Module.register("MMM-PVMonitor", {
                 },
                 y: {
 					min: 0,
-					max: 30,
+					// max: 30, // Dynamic max is better
                     position: 'left',
                     grid: {
                         drawTicks: true,
