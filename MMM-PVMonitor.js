@@ -427,7 +427,7 @@ Module.register("MMM-PVMonitor", {
                 ctx.textAlign = "left";
 				var timestamp = "Unknown";
 				if (this.spotPrices && this.spotPrices.updateTimestamp) {
-					timestamp = this.spotPrices.updateTimestamp.toLocaleString();
+					timestamp = new Date(this.spotPrices.updateTimestamp).toLocaleTimeString();
 				}
                 ctx.fillText(`Data updated: ${timestamp}`, left, bottom - 5);
                 ctx.restore();
