@@ -417,6 +417,23 @@ Module.register("MMM-PVMonitor", {
 		// Create "tomorrow 00:00:00" (end of X axis)
 		const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0, 0, 0);
 
+        const footerPlugin = {
+            id: "footerPlugin",
+            afterDraw(chart) {
+                const { ctx, chartArea: { bottom, left } } = chart;
+                ctx.save();
+                ctx.font = "10px sans-serif";
+                ctx.fillStyle = "#aaa"; // light grey footer text
+                ctx.textAlign = "left";
+				const timestamp = "Unknown";
+				if (this.spotPrices.updateTimestamp) {
+					timestamp = this.spotPrices.updateTimestamp.toLocaleString();
+				}
+                ctx.fillText(`Data updated: ${timestamp}`, left, bottom + 20);
+                ctx.restore();
+            }
+        };
+
 		return {
 			type: 'line',
           	data: {
@@ -537,7 +554,8 @@ Module.register("MMM-PVMonitor", {
                     }
                 }
             }
-          }
+          },
+		  plugins: [footerPlugin]
 		};
 	},
 
@@ -545,7 +563,12 @@ Module.register("MMM-PVMonitor", {
 		console.log(`Setting chart data for dataset ${dataSetIndex} with ${data.length} entries`);
 		if (this.chart) {
 			this.chart.data.datasets[dataSetIndex].data = data;
-			if (label) this.chart.data.datasets[dataSetIndex].label = label;
+
+			if (label)
+				this.chart.data.datasets[dataSetIndex].label = label;
+			else
+				this.chart.data.datasets[dataSetIndex].label = "HIDDEN"; // this label gets filtered out in legend
+
 			this.chart.update();
 		}
 	},
