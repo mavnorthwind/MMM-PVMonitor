@@ -87,9 +87,10 @@ module.exports = NodeHelper.create({
 					console.log("Creating SpotPrices instance");
 					this.spotPrices = new SpotPrices();
 
-					if (!this.spotPrices.hasPrices || this.spotPrices.maxDate < new Date()) // No or old prices
+					if (!this.spotPrices.hasPrices ||
+						this.spotPrices.maxDate < new Date()) // No prices for today
 					{
-						console.log("Fetching spot prices");
+						console.log("Fetching spot prices (no prices for today)");
 						await this.spotPrices.updateSpotPricesAsync();
 					}
 
@@ -99,9 +100,9 @@ module.exports = NodeHelper.create({
 						await this.spotPrices.updateSpotPricesAsync(0,1);
 					});
 					
-					// update spot prices every 15 minutes - cheap since we do caching
+					// send spot prices to module every 15 minutes - cheap since we do caching
 					setInterval(async () => {
-					 	await this.fetchSpotPriceAsync();
+					 	await this.sendSpotPrice();
 					}, 15*60*1000);
 
 				} catch(error) {
@@ -150,7 +151,7 @@ module.exports = NodeHelper.create({
 				break;
 			case "GETSPOTPRICE":
 				console.log(`node_helper ${this.name}: GETSPOTPRICE`);
-				await this.fetchSpotPriceAsync();
+				await this.sendSpotPrice();
 				break;
 			case "GETSITEDETAILS":
 				console.log(`node_helper ${this.name}: GETSITEDETAILS`);
@@ -161,9 +162,7 @@ module.exports = NodeHelper.create({
 				console.log(`node_helper ${this.name}: USER_PRESENCE ${payload}`);
 				if (payload) // User is present
 				{
-					// Will be too often
-					//await this.fetchStorageDataAsync();
-					await this.fetchSpotPriceAsync();
+					await this.sendSpotPrice();
 				}
 				break;
 		}
@@ -282,8 +281,8 @@ module.exports = NodeHelper.create({
 	 * Sends current spot price data to the module.
 	 * Does NOT fetch new data; update is done periodically elsewhere.
 	 */
-	fetchSpotPriceAsync: async function() {
-		console.log(`node_helper ${this.name}: fetchSpotPriceAsync()`);
+	sendSpotPrice: function() {
+		console.log(`node_helper ${this.name}: sendSpotPrice()`);
 
 		try {
 			this.sendSocketNotification("SPOTPRICE", {

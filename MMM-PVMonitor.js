@@ -406,6 +406,7 @@ Module.register("MMM-PVMonitor", {
 		} catch (err) {
 			console.error("Error building chart:", err);
 			document.getElementById("batteryLoading").innerHTML = `Error loading chart: ${err}`;
+			return null;
 		}
 	},
 
