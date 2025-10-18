@@ -419,17 +419,17 @@ Module.register("MMM-PVMonitor", {
 
         const footerPlugin = {
             id: "footerPlugin",
-            afterDraw(chart) {
+            afterDraw: (chart) => { // arrow function keeps "this" context
                 const { ctx, chartArea: { bottom, left } } = chart;
                 ctx.save();
                 ctx.font = "10px sans-serif";
                 ctx.fillStyle = "#aaa"; // light grey footer text
                 ctx.textAlign = "left";
 				const timestamp = "Unknown";
-				if (this.spotPrices.updateTimestamp) {
+				if (this.spotPrices && this.spotPrices.updateTimestamp) {
 					timestamp = this.spotPrices.updateTimestamp.toLocaleString();
 				}
-                ctx.fillText(`Data updated: ${timestamp}`, left, bottom + 20);
+                ctx.fillText(`Data updated: ${timestamp}`, left, bottom - 5);
                 ctx.restore();
             }
         };
