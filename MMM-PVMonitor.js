@@ -425,7 +425,7 @@ Module.register("MMM-PVMonitor", {
                 ctx.font = "10px sans-serif";
                 ctx.fillStyle = "#aaa"; // light grey footer text
                 ctx.textAlign = "left";
-				const timestamp = "Unknown";
+				var timestamp = "Unknown";
 				if (this.spotPrices && this.spotPrices.updateTimestamp) {
 					timestamp = this.spotPrices.updateTimestamp.toLocaleString();
 				}
