@@ -278,18 +278,14 @@ module.exports = NodeHelper.create({
 		}
 	},
 	
+	/**
+	 * Sends current spot price data to the module.
+	 * Does NOT fetch new data; update is done periodically elsewhere.
+	 */
 	fetchSpotPriceAsync: async function() {
 		console.log(`node_helper ${this.name}: fetchSpotPriceAsync()`);
 
 		try {
-			const now = new Date();
-			const tomorrow = new Date(now.setDate(now.getDate()+1));
-
-			if (this.spotPrices.maxDate < tomorrow) {
-				console.log("Caching new spot prices");
-				await this.spotPrices.updateSpotPricesAsync();
-			}
-
 			this.sendSocketNotification("SPOTPRICE", {
 				currentPrice: this.spotPrices.currentPrice,
 				currentPriceDate: this.spotPrices.currentPriceDate,
@@ -300,6 +296,7 @@ module.exports = NodeHelper.create({
 				prices: this.spotPrices.prices,
 				dates: this.spotPrices.dates,
 				unit: this.spotPrices.unit,
+				updateTimestamp: this.spotPrices.updateTimestamp,
 			});
 			console.log(`node_helper ${this.name}: sent SPOTPRICE`);
 		} catch(error) {
