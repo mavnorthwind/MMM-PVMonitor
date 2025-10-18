@@ -138,7 +138,7 @@ Module.register("MMM-PVMonitor", {
 
 			const spotPriceDataset = [];
 			this.spotPrices.prices.forEach((val, index, array) => {
-				spotPriceDataset.push({ x: this.spotPrices.dates[index], y: val });
+				spotPriceDataset.push({ x:this.spotPrices.dates[index], y: val });
 			});
 
 			this.setChartData(DataSetIndices.SpotPrices, spotPriceDataset);
@@ -154,7 +154,7 @@ Module.register("MMM-PVMonitor", {
 
 			const storageDataset = [];
 			this.storageData.forEach((val, index, array) => {
-				storageDataset.push({ x: val.timeStamp, y: val.socPercent });
+				storageDataset.push({ x: new Date(val.timeStamp), y: val.socPercent });
 			});
 
 			this.setChartData(DataSetIndices.Storage, storageDataset);
