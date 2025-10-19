@@ -13,9 +13,9 @@ const schedule = require('node-schedule');
 
 module.exports = NodeHelper.create({
 	config: undefined,
-	timer: undefined,
+	timerPowerFlow: undefined,
 	timerEnergy: undefined,
-	throttler: undefined,
+	throttlerPowerFlow: undefined,
 	teslaThrottler: undefined,
 	teslaTimer: undefined,
 	teslaData: undefined,
@@ -31,18 +31,19 @@ module.exports = NodeHelper.create({
 	timerDiagram: undefined,
 	solarEdgeApi: undefined,
 	spotPrices: undefined,
+	userPresenceThrottler: undefined,
 
 
 	start: function() {
 		
 		console.log(`node_helper ${this.name}: Starting module`);
 
-		this.throttler = new Throttler();
-		this.throttler.minimumTimeBetweenCalls = 5*60*1000;
-		this.throttler.maxCallsPerDay = 300;
-		this.throttler.setThrottleHours(22, 8);
+		this.throttlerPowerFlow = new Throttler();
+		this.throttlerPowerFlow.minimumTimeBetweenCalls = 5*60*1000;
+		this.throttlerPowerFlow.maxCallsPerDay = 300;
+		this.throttlerPowerFlow.setThrottleHours(22, 8);
 
-		this.throttler.logThrottlingConditions();
+		// this.throttlerPowerFlow.logThrottlingConditions();
 
 		try {
 			if (fs.existsSync("maxPower.json")) {
@@ -61,7 +62,10 @@ module.exports = NodeHelper.create({
 			// Don't throttle while charging
 			return (this.teslaData && this.teslaData.chargingState=="Charging");
 		});
-		this.teslaThrottler.logThrottlingConditions();
+		// this.teslaThrottler.logThrottlingConditions();
+
+		this.userPresenceThrottler = new Throttler();
+		this.userPresenceThrottler.minimumTimeBetweenCalls = 5*60*1000; // Once every 5 minutes
 
 		console.log(`node_helper ${this.name}: Started module`);
 	},
@@ -69,47 +73,32 @@ module.exports = NodeHelper.create({
 	socketNotificationReceived: async function(notification, payload)	{
 		switch (notification) {
 			case "ENERGYCONFIG":
+				if (this.config) {
+					console.log(`node_helper ${this.name}: Re-configuring module`);
+					if (this.timerPowerFlow)
+						clearInterval(this.timerPowerFlow);
+					if (this.timerEnergy)
+						clearInterval(this.timerEnergy);
+					if (this.timerDiagram)
+						clearInterval(this.timerDiagram);
+					if (this.teslaTimer)
+						clearInterval(this.teslaTimer);
+				}
+
 				this.config = payload;
 				
 				this.setupSolarEdgeApi();
 
 				await this.setupSpotPricesAsync();
 
-/*
-				if (this.timer)
-					clearInterval(this.timer);
+				this.setupTeslaApi();
 
-				this.timer = setInterval(function() {
-					this.throttler.execute(() => this.fetchPowerFlow(), (r) => console.log("PowerFlow update throttled:"+r));
-				}, this.config.interval);
-				console.log(`node_helper ${this.name}: interval set to ${this.config.interval}`);
-
-				this.timerEnergy = setInterval(function() {
-					this.fetchProduction();
-					this.fetchEnergyDetails();
-				}, 60*60*1000); // Update production every hour
-
-				this.timerDiagram = setInterval(function() {
-					this.fetchDiagramData();
-				}, 15*60*1000); // Update diagram every 15 minutes
-
-				this.teslaTimer = setInterval(function() {
-					this.teslaThrottler.execute(() => this.fetchTeslaCharge(), (r) => console.log("TeslaCharge update throttled:"+r));
-				}, 5*60*1000);
-
-				setInterval(function() {
-					this.fetchSpotPrice();
-				}, 4*60*60*1000); // Update spot prices every 4 hours - enough since we do caching
-
-				// run request 1st time
-				this.fetchSiteDetails();
-				this.throttler.forceExecute(() => this.fetchPowerFlow());
-				this.fetchProduction();
-				this.fetchEnergyDetails();
-				this.fetchDiagramData();
-				this.fetchSpotPrice();
+				await this.fetchSiteDetailsAsync();
+				this.throttlerPowerFlow.forceExecute(() => this.fetchPowerFlowAsync());
+				this.fetchProductionAsync();
+				this.fetchAutarchyAsync();
+				
 				this.teslaThrottler.forceExecute(() => this.fetchTeslaCharge());
-*/
 				break;
 
 			case "GETSTORAGEDATA":
@@ -119,9 +108,9 @@ module.exports = NodeHelper.create({
 
 			case "GETSPOTPRICES": // payload: boolean - whether to update prices
 				console.log(`node_helper ${this.name}: GETSPOTPRICES Update: ${payload}`);
-				if (payload) {
+				if (payload && payload===true) {
 					try {
-						await this.spotPrices.updateSpotPricesAsync();
+						await this.updateSpotPricesAsync();
 					} catch (error) {
 						console.error(`Error updating spot prices: ${error}`);
 					}
@@ -134,23 +123,54 @@ module.exports = NodeHelper.create({
 				await this.fetchSiteDetailsAsync();
 				break;
 
+			case "GETAUTARCHY":
+				console.log(`node_helper ${this.name}: GETAUTARCHY`);
+				await this.fetchAutarchyAsync();
+				break;
+
+			case "GETTESLACHARGE":
+				console.log(`node_helper ${this.name}: GETTESLACHARGE`);
+				this.teslaThrottler.execute(() => this.fetchTeslaCharge(),
+											(r) => console.log("TeslaCharge update throttled:"+r));
+				break;
+
 			case "USER_PRESENCE":
 				console.log(`node_helper ${this.name}: USER_PRESENCE ${payload}`);
 				if (payload) // User is present
 				{
-					await this.sendSpotPrices();
+					this.userPresenceThrottler.execute( async () => await this.sendSpotPrices(),
+														(r) => console.log("User presence spot price update throttled:"+r)
+													);
 				}
 				break;
 		}
 	},
 
+	/**
+	 * Setup SolarEdge API: create instance, setup periodic storage data fetch
+	 */
 	setupSolarEdgeApi: function() {
 		try {
-			console.log("Creating SolaredgeAPI instance");
+			console.log(`node_helper ${this.name}: Creating SolaredgeAPI instance`);
 			this.solarEdgeApi = new SolaredgeAPI(this.config.siteId, this.config.apiKey, this.config.inverterId);
 
-			setInterval(async () => {
-				console.log("Scheduled job: Fetching storage data at " + new Date().toLocaleTimeString());
+			// Schedule power flow fetch according to config interval
+			this.timerPowerFlow = setInterval(() => {
+				this.throttlerPowerFlow.execute(() => this.fetchPowerFlowAsync(),
+												(r) => console.log("PowerFlow update throttled:"+r));
+			}, this.config.interval);
+			console.log(`node_helper ${this.name}: interval set to ${this.config.interval}`);
+
+			// Schedule production and autarchy fetch every hour
+			this.timerEnergy = setInterval(() => {
+				this.fetchProductionAsync();
+				this.fetchAutarchyAsync();
+			}, 60*60*1000);
+
+
+			// Schedule storage data fetch every 15 minutes
+			this.timerStorage = setInterval(async () => {
+				console.log(`node_helper ${this.name}: Scheduled job: Fetching storage data at ${new Date().toLocaleTimeString()}`);
 				await this.fetchStorageDataAsync();
 			}, 15*60*1000);
 		} catch (error) {
@@ -158,6 +178,21 @@ module.exports = NodeHelper.create({
 		}
 	},
 
+	/**
+	 * Setup Tesla API: setup periodic charge status fetch
+	 */
+	setupTeslaApi: function() {
+		this.teslaTimer = setInterval(() => {
+			this.teslaThrottler.execute( () => this.fetchTeslaCharge(),
+										 (r) => console.log("TeslaCharge update throttled:"+r));
+		}, 5*60*1000);
+
+		this.fetchTeslaCharge();
+	},
+
+	/**
+	 * Setup spot prices: create instance, fetch initial data, setup periodic update
+	 */
 	setupSpotPricesAsync: async function() {
 		try {
 			console.log("Creating SpotPrices instance");
@@ -171,6 +206,7 @@ module.exports = NodeHelper.create({
 			}
 			
 			schedule.scheduleJob('3 21 * * *', async () => { // Every day at 21:03
+				console.log("Scheduled job: Fetching spot prices at " + new Date().toLocaleTimeString());
 				await this.updateSpotPricesAsync();
 			});
 			
@@ -184,7 +220,7 @@ module.exports = NodeHelper.create({
 		}
 	},
 
-	fetchPowerFlow: async function() {
+	fetchPowerFlowAsync: async function() {
 	
 		if (!this.config){
 			console.error(`node_helper ${this.name}:Configuration has not been set!`);
@@ -201,13 +237,13 @@ module.exports = NodeHelper.create({
 		const powerflowReply = {
 			powerflow: powerFlow,
 			productionSpan: this.productionSpan,
-			requestCount: this.throttler.todaysCallCount
+			requestCount: this.throttlerPowerFlow.todaysCallCount
 		};
 
 		this.sendSocketNotification("POWERFLOW", powerflowReply);
 	},
 
-	fetchProduction: async function() {
+	fetchProductionAsync: async function() {
 		if (!this.config){
 			console.error(`node_helper ${this.name}:Configuration has not been set!`);
 			return;
@@ -244,22 +280,24 @@ module.exports = NodeHelper.create({
 		}
 	},
 
-	fetchDiagramDataAsync: async function() {
-		console.log(`node_helper ${this.name}: fetchDiagramDataAsync()`);
+	// Done in fetchStorageDataAsync now
 
-		if (!this.config){
-			console.error(`node_helper ${this.name}: Configuration has not been set!`);
-			return;
-		}
+	// fetchDiagramDataAsync: async function() {
+	// 	console.log(`node_helper ${this.name}: fetchDiagramDataAsync()`);
 
-		try {
-			const diagramData = await this.solarEdgeApi.fetchDiagramData();
-			this.sendSocketNotification("DIAGRAMDATA", diagramData);
-			console.log(`node_helper ${this.name}: sent DIAGRAMDATA`);
-		} catch (err) {
-			console.error("Error fetching diagram data:", err);
-		}
-	},
+	// 	if (!this.config){
+	// 		console.error(`node_helper ${this.name}: Configuration has not been set!`);
+	// 		return;
+	// 	}
+
+	// 	try {
+	// 		const diagramData = await this.solarEdgeApi.fetchDiagramData();
+	// 		this.sendSocketNotification("DIAGRAMDATA", diagramData);
+	// 		console.log(`node_helper ${this.name}: sent DIAGRAMDATA`);
+	// 	} catch (err) {
+	// 		console.error("Error fetching diagram data:", err);
+	// 	}
+	// },
 	
 	fetchTeslaCharge: function() {
 		console.log(`node_helper ${this.name}: fetchTeslaCharge()`);
@@ -289,21 +327,27 @@ module.exports = NodeHelper.create({
 			console.error("Error fetching Tesla charge status:", err);
 		}
 	},
-	
 
+	/**
+	 * Update spot prices with retries
+	 * @param {Number} maxAttempts Max. number of retries
+	 * @returns true if update was successful, false else
+	 */
 	updateSpotPricesAsync: async function(maxAttempts = 5) {
-		for (let attempt=1; attempt <= maxAttempts; attempt++) {
+		var attempt;
+		for (attempt=1; attempt <= maxAttempts; attempt++) {
 			try {
-				console.log(`Scheduled job: Try #${attempt} fetching spot prices at ${new Date().toLocaleTimeString()}`);
+				console.log(`Try #${attempt} fetching spot prices at ${new Date().toLocaleTimeString()}`);
 				await this.spotPrices.updateSpotPricesAsync(0,1);
-				console.log(`Successfully updated spot prices in scheduled job`);
-				return;
+				console.log(`Successfully updated spot prices`);
+				return true;
 			} catch (error) {
-				console.error(`Error updating spot prices in scheduled job: ${error}`);
+				console.error(`Error updating spot prices: ${error}`);
 				await new Promise(resolve => setTimeout(resolve, attempt * 10000)); // Wait longer between attempts
 			}
 		}
-		console.error(`Giving up after ${maxAttempts} attempts to update spot prices in scheduled job`);
+		console.error(`Giving up after ${maxAttempts} attempts to update spot prices`);
+		return false;
 	},
 
 	/**

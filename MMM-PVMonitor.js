@@ -76,7 +76,7 @@ Module.register("MMM-PVMonitor", {
 			this.sendSocketNotification("GETSTORAGEDATA"); // Will trigger an update of the diagram when data is received
 			this.sendSocketNotification("GETSPOTPRICES"); // Will trigger an update of the diagram when data is received
 
-			this.sendSocketNotification("GETSITEDETAILS");
+			this.sendSocketNotification("GETTESLACHARGE");
 		}, 1000);
 
 	},
@@ -111,7 +111,8 @@ Module.register("MMM-PVMonitor", {
 				this.siteDetails.maxPower.timestamp = Date.now();
 				console.log(`Module ${this.name}: New max power ${this.siteDetails.maxPower.value} ${this.powerFlow.unit} at ${new Date(this.siteDetails.maxPower.timestamp).toLocaleString()}`);
 			}
-			this.updateDom(0);
+
+			this.updatePowerFlowTable();
 		}
 
 		if (notification === "PRODUCTION") {
@@ -123,11 +124,11 @@ Module.register("MMM-PVMonitor", {
 		if (notification === "AUTARCHY") {
 			this.lastError = undefined;
 			this.autarchy = payload;
-			this.updateDom(0);
+
+			this.updateSummary();
 		}
 		
 		if (notification === "TESLA") {
-			//console.log("TESLA Data received: "+JSON.stringify(payload));
 			this.teslaData = payload;
 			this.updateDom(0);
 		}
@@ -245,129 +246,152 @@ Module.register("MMM-PVMonitor", {
 		return `${value} ${unit}`;
 	},
 
+	/**
+ 	* Fills the HTML table template with current power flow data.
+	 * @param {*} powerFlow 
+	 * @returns The filled HTML table as string.
+	 */
 	fillTableTemplate: function(powerFlow) {
-		var hasStorage = false;
-		if (powerFlow.STORAGE) hasStorage = true;
-		var storageClass = hasStorage ? "on" : "off";
-		var storageCharge = hasStorage ? powerFlow.STORAGE.chargeLevel : "n/a";
-		var storagePower = hasStorage ? this.beautifyPower(powerFlow.STORAGE.currentPower, powerFlow.unit) : "0";
-		var pvImage = this.getComponentImage("PV", powerFlow);
-		var loadImage = this.getComponentImage("Load", powerFlow);
-		var gridImage = this.getComponentImage("Grid", powerFlow);
-		var storageImage = this.getStorageImage(powerFlow);
-		var chargingImage = this.file("Images/Battery_Charging.svg");
-		var chargingClass = "discharging";
-		if (hasStorage && powerFlow.STORAGE.status === "Charging")
-			chargingClass = "chargingImage";
-		var arrowDownImage = this.file("Images/Arrow_Down_G.svg");
-		var arrowLeftImage = this.file("Images/Arrow_Left_O.svg");
-		var arrowRightImage = this.file("Images/Arrow_Right_G.svg");
-		var arrowRightDownImage = this.file("Images/Arrow_RightDown_G.svg");
-		var arrowRightUpImage = this.file("Images/Arrow_RightUp_G.svg");
-
-		var flowPV2STORAGE = this.hasFlow(powerFlow, "PV", "STORAGE") ? "" : "off";
-		var flowPV2LOAD = this.hasFlow(powerFlow, "PV", "Load") ? "" : "off";
-		var flowGRID2LOAD = this.hasFlow(powerFlow, "GRID", "Load") ? "" : "off";
-		var flowLOAD2GRID = this.hasFlow(powerFlow, "Load", "GRID") ? "" : "off";
-		var flowSTORAGE2LOAD = this.hasFlow(powerFlow, "STORAGE", "LOAD") ? "" : "off";
-
-		var productionToday = this.energy ? `${this.beautifyEnergy(this.energy.productionToday, this.energy.unit)}` : "?";
-		var productionYesterday = this.energy ? `${this.beautifyEnergy(this.energy.productionYesterday, this.energy.unit)}` : "?";
-
-		var autarchy = this.autarchy ? Math.round(this.autarchy.percentage * 100) : "?";
-
-		var teslaImage = this.file("Images/Tesla_Model3_red.svg");
-		const milesToKm = 1.609344;
-		var teslaBatteryLevel = this.teslaData ? this.teslaData.batteryLevel : "?";
-		var teslaBatteryRange = this.teslaData ? Math.round(this.teslaData.batteryRange * milesToKm) : "?";
-		var teslaEstimatedBatteryRange = this.teslaData ? Math.round(this.teslaData.estimatedBatteryRange * milesToKm) : "?";
-		var teslaTimestamp = this.teslaData ? new Date(this.teslaData.timestamp).toLocaleTimeString() : "?";
-		var teslaChargingState = this.teslaData ? this.teslaData.chargingState : "?";
-		var teslaState = this.teslaData ? this.teslaData.state : "?";
-		var teslamaxutesToFullCharge = this.teslaData ? this.teslaData.maxutesToFullCharge : 0;
-		var teslaChargePower = this.teslaData ? this.teslaData.chargerPower : 0;
-		var teslaChargeCurrent = this.teslaData ? this.teslaData.chargerActualCurrent : 0;
-		var lasterror = this.lastError ? this.lastError.message : "";
-		var teslaChargeClass = this.teslaData ? (this.teslaData.chargingState=="Charging" ? "" : "off") : "off";
-
-		// Format Spot Prices
-		var spotPriceText = "UNKNOWN";
 		try{
-			if (this.spotPrices) {
-				var curr = this.spotPrices.currentSpotPrice;
-				var unit = this.spotPrices.priceUnit;
-				var update = new Date(this.spotPrices.updateTimestamp);
-				spotPriceText = `${curr} ${unit} (${update.toLocaleTimeString()})`;
-			}
+			var hasStorage = false;
+			if (powerFlow.STORAGE) hasStorage = true;
+			var storageClass = hasStorage ? "on" : "off";
+			var storageCharge = hasStorage ? powerFlow.STORAGE.chargeLevel : "n/a";
+			var storagePower = hasStorage ? this.beautifyPower(powerFlow.STORAGE.currentPower, powerFlow.unit) : "0";
+			var pvImage = this.getComponentImage("PV", powerFlow);
+			var loadImage = this.getComponentImage("Load", powerFlow);
+			var gridImage = this.getComponentImage("Grid", powerFlow);
+			var storageImage = this.getStorageImage(powerFlow);
+			var chargingImage = this.file("Images/Battery_Charging.svg");
+			var chargingClass = "discharging";
+			if (hasStorage && powerFlow.STORAGE.status === "Charging")
+				chargingClass = "chargingImage";
+			var arrowDownImage = this.file("Images/Arrow_Down_G.svg");
+			var arrowLeftImage = this.file("Images/Arrow_Left_O.svg");
+			var arrowRightImage = this.file("Images/Arrow_Right_G.svg");
+			var arrowRightDownImage = this.file("Images/Arrow_RightDown_G.svg");
+			var arrowRightUpImage = this.file("Images/Arrow_RightUp_G.svg");
+
+			var flowPV2STORAGE = this.hasFlow(powerFlow, "PV", "STORAGE") ? "" : "off";
+			var flowPV2LOAD = this.hasFlow(powerFlow, "PV", "Load") ? "" : "off";
+			var flowGRID2LOAD = this.hasFlow(powerFlow, "GRID", "Load") ? "" : "off";
+			var flowLOAD2GRID = this.hasFlow(powerFlow, "Load", "GRID") ? "" : "off";
+			var flowSTORAGE2LOAD = this.hasFlow(powerFlow, "STORAGE", "LOAD") ? "" : "off";
+
+			var teslaImage = this.file("Images/Tesla_Model3_red.svg");
+			const milesToKm = 1.609344;
+			var teslaBatteryLevel = this.teslaData ? this.teslaData.batteryLevel : "?";
+			var teslaBatteryRange = this.teslaData ? Math.round(this.teslaData.batteryRange * milesToKm) : "?";
+			var teslaEstimatedBatteryRange = this.teslaData ? Math.round(this.teslaData.estimatedBatteryRange * milesToKm) : "?";
+
+			var teslaChargePower = this.teslaData ? this.teslaData.chargerPower : 0;
+			var teslaChargeCurrent = this.teslaData ? this.teslaData.chargerActualCurrent : 0;
+			var teslaChargeClass = this.teslaData ? (this.teslaData.chargingState=="Charging" ? "" : "off") : "off";
+
+			var template = 
+			`<table>
+				<tr>
+					<th class="MMPV_TH">${this.beautifyPower(powerFlow.PV.currentPower, powerFlow.unit)}</th>
+					<th class="MMPV_TH">${this.beautifyPower(powerFlow.LOAD.currentPower, powerFlow.unit)}</th>
+					<th class="MMPV_TH">${this.beautifyPower(powerFlow.GRID.currentPower, powerFlow.unit)}</th>
+				</tr>
+				<tr>
+					<td class="MMPV_TD">
+						<span class="${flowPV2STORAGE} overlayBelow"><img src="${arrowDownImage}" /></span>
+						<span class="${flowPV2LOAD} overlayRight"><img src="${arrowRightDownImage}" /></span>
+						<img src="${pvImage}" />
+					</td>
+					<td class="MMPV_TD"><img src="${loadImage}" /></td>
+					<td class="MMPV_TD" rowspan="2">
+						<span class="${flowGRID2LOAD} overlayLeft"><img src="${arrowLeftImage}" /></span>
+						<span class="${flowLOAD2GRID} overlayLeft"><img src="${arrowRightImage}" /></span>
+						<img src="${gridImage}" />
+					</td>
+				</tr>
+				<tr>
+					<td class="MMPV_TD ${storageClass}">
+						<span class="${flowSTORAGE2LOAD} overlayRight"><img src="${arrowRightUpImage}" /></span>
+						<img class="storageImage" src="${storageImage}" />
+						<img class="${chargingClass}" src="${chargingImage}" />
+						<div class="percentage">${storageCharge} %</div>
+						<div class="storagePower">${storagePower}</div>
+					</td>
+					<td class="MMPV_TD">
+						<span class="${teslaChargeClass} chargeAbove teslaCharge">Charge ${teslaChargeCurrent}A/${teslaChargePower}kW</span>
+						<img src="${teslaImage}" width="96px"/>
+						<span class="teslaCharge">${teslaBatteryLevel}% / ${teslaBatteryRange}(${teslaEstimatedBatteryRange})km</span>
+					</td>
+				</tr>
+			</table>`;
+
+			return template;
 		} catch (err) {
-			console.error("Error updating spot price:",err);
-			spotPriceText = err;
+			console.error("Error building table:", err);
+			return `<div class="lastError">Error building table: ${err}</div>`;
 		}
+	},
 
+	fillSummary: function(powerFlow) {
+		try {
+			var productionToday = this.energy ? `${this.beautifyEnergy(this.energy.productionToday, this.energy.unit)}` : "?";
+			var productionYesterday = this.energy ? `${this.beautifyEnergy(this.energy.productionYesterday, this.energy.unit)}` : "?";
 
-		var template = 
-		`<table>
-            <tr>
-                <th class="MMPV_TH">${this.beautifyPower(powerFlow.PV.currentPower, powerFlow.unit)}</th>
-                <th class="MMPV_TH">${this.beautifyPower(powerFlow.LOAD.currentPower, powerFlow.unit)}</th>
-                <th class="MMPV_TH">${this.beautifyPower(powerFlow.GRID.currentPower, powerFlow.unit)}</th>
-            </tr>
-            <tr>
-                <td class="MMPV_TD">
-                    <span class="${flowPV2STORAGE} overlayBelow"><img src="${arrowDownImage}" /></span>
-                    <span class="${flowPV2LOAD} overlayRight"><img src="${arrowRightDownImage}" /></span>
-                    <img src="${pvImage}" />
-                </td>
-                <td class="MMPV_TD"><img src="${loadImage}" /></td>
-                <td class="MMPV_TD" rowspan="2">
-                    <span class="${flowGRID2LOAD} overlayLeft"><img src="${arrowLeftImage}" /></span>
-                    <span class="${flowLOAD2GRID} overlayLeft"><img src="${arrowRightImage}" /></span>
-                    <img src="${gridImage}" />
-					<span class="spotPrice">${spotPriceText}</span>
-                </td>
-            </tr>
-            <tr>
-                <td class="MMPV_TD ${storageClass}">
-					<span class="${flowSTORAGE2LOAD} overlayRight"><img src="${arrowRightUpImage}" /></span>
-					<img class="storageImage" src="${storageImage}" />
-					<img class="${chargingClass}" src="${chargingImage}" />
-					<div class="percentage">${storageCharge} %</div>
-					<div class="storagePower">${storagePower}</div>
-                </td>
-				<td class="MMPV_TD">
-					<span class="${teslaChargeClass} chargeAbove teslaCharge">Charge ${teslaChargeCurrent}A/${teslaChargePower}kW</span>
-					<img src="${teslaImage}" width="96px"/>
-					<span class="teslaCharge">${teslaBatteryLevel}% / ${teslaBatteryRange}(${teslaEstimatedBatteryRange})km</span>
-				</td>
-            </tr>
-        </table>
-		<div id="diagramWrapper" class="diagramWrapper">
-		</div>
-		<div class="summary">
-			Stand: ${this.timestamp.toLocaleTimeString()}; Produktion heute: ${productionToday} (gestern ${productionYesterday})
-		</div>
-		<div class="summary" style="display:none">
-			PeakPower ${this.siteDetails.peakPower} kW (max ${this.siteDetails.maxPower.value} kW am ${new Date(this.siteDetails.maxPower.timestamp).toLocaleString()})
-		</div>
-		<div class="summary" style="display:none">
-			Produktion heute von ${this.productionSpan.firstProduction} bis ${this.productionSpan.lastProduction}
-		</div>
-		<div class="summary">
-			Autarkie der letzten 30 Tage: ${autarchy} %
-		</div>
-		<div class="summary">
-			Ladestatus: ${teslaChargingState}; noch ${teslamaxutesToFullCharge} max. (Stand: ${teslaTimestamp})
-		</div>
-		<div class="lasterror">
-			${lasterror}
-		</div>
-		`;
+			var autarchy = this.autarchy ? Math.round(this.autarchy.percentage * 100) : "?";
 
-		return template;
+			var teslaTimestamp = this.teslaData ? new Date(this.teslaData.timestamp).toLocaleTimeString() : "?";
+			var teslaChargingState = this.teslaData ? this.teslaData.chargingState : "?";
+			var teslaState = this.teslaData ? this.teslaData.state : "?";
+			var teslamaxutesToFullCharge = this.teslaData ? this.teslaData.maxutesToFullCharge : 0;
+
+			const summary =
+			`<div class="summary">
+				Stand: ${this.timestamp.toLocaleTimeString()}; Produktion heute: ${productionToday} (gestern ${productionYesterday})
+			</div>
+			<div class="summary" style="display:none">
+				PeakPower ${this.siteDetails.peakPower} kW (max ${this.siteDetails.maxPower.value} kW am ${new Date(this.siteDetails.maxPower.timestamp).toLocaleString()})
+			</div>
+			<div class="summary" style="display:none">
+				Produktion heute von ${this.productionSpan.firstProduction} bis ${this.productionSpan.lastProduction}
+			</div>
+			<div class="summary">
+				Autarkie der letzten 30 Tage: ${autarchy} %
+			</div>
+			<div class="summary">
+				Ladestatus: ${teslaChargingState}; noch ${teslamaxutesToFullCharge} max. (Stand: ${teslaTimestamp})
+			</div>`;
+			return summary;
+		} catch (err) {
+			console.error("Error building summary:", err);
+			return `<div class="lastError">Error building summary: ${err}</div>`;
+		}
 	},
 
 	getStyles: function() {
 		return [ "MMM-PVMonitor.css" ];
+	},
+
+	updatePowerFlowTable: function() {
+		console.log(`Module ${this.name}: updatePowerFlowTable() called`);
+		if (this.powerFlow) {
+			const tableHtml = this.fillTableTemplate(this.powerFlow);
+			const tableDiv = document.getElementById("powerflowTable");
+			tableDiv.innerHTML = tableHtml;
+			
+			document.getElementById("powerflowLoading")?.remove();
+			
+			console.log("Powerflow table updated");
+		}
+	},
+
+	updateSummary: function() {
+		console.log(`Module ${this.name}: updateSummary() called`);
+		const summaryHtml = this.fillSummary();
+		const summaryDiv = document.getElementById("summary");
+		summaryDiv.innerHTML = summaryHtml;
+		
+		document.getElementById("summaryLoading")?.remove();
+
+		console.log("Summary updated");
 	},
 
 	// Called after start(), before DOM_OBJECTS_CREATED notification.
@@ -400,7 +424,7 @@ Module.register("MMM-PVMonitor", {
 
 			this.chart = chart;
 			
-			document.getElementById("batteryLoading").remove();
+			document.getElementById("batteryLoading")?.remove();
 
 			return chart;
 		} catch (err) {
