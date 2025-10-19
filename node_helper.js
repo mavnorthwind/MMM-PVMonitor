@@ -8,7 +8,7 @@ const Throttler = require("./Throttler.js");
 const fs = require('fs');
 const SolaredgeAPI = require("./SolaredgeAPI.js");
 const SpotPrices = require("./SpotPrices.js");
-const spawn = require('child_process').spawn;
+const { execFile, spawn } = require('child_process');
 const schedule = require('node-schedule');
 
 module.exports = NodeHelper.create({
@@ -98,13 +98,15 @@ module.exports = NodeHelper.create({
 				this.fetchProductionAsync();
 				this.fetchAutarchyAsync();
 				
-				this.teslaThrottler.forceExecute(() => this.fetchTeslaCharge());
+				this.teslaThrottler.forceExecute(() => this.fetchTeslaChargeAsync());
 				break;
+
 
 			case "GETSTORAGEDATA":
 				console.log(`node_helper ${this.name}: GETSTORAGEDATA`);
 				await this.fetchStorageDataAsync();
 				break;
+
 
 			case "GETSPOTPRICES": // payload: boolean - whether to update prices
 				console.log(`node_helper ${this.name}: GETSPOTPRICES Update: ${payload}`);
@@ -130,8 +132,8 @@ module.exports = NodeHelper.create({
 
 			case "GETTESLACHARGE":
 				console.log(`node_helper ${this.name}: GETTESLACHARGE`);
-				this.teslaThrottler.execute(() => this.fetchTeslaCharge(),
-											(r) => console.log("TeslaCharge update throttled:"+r));
+				this.teslaThrottler.execute(async() => await this.fetchTeslaChargeAsync(payload),
+											(r) => console.error("TeslaCharge update throttled:"+r));
 				break;
 
 			case "USER_PRESENCE":
@@ -139,7 +141,7 @@ module.exports = NodeHelper.create({
 				if (payload) // User is present
 				{
 					this.userPresenceThrottler.execute( async () => await this.sendSpotPrices(),
-														(r) => console.log("User presence spot price update throttled:"+r)
+														(r) => console.error("User presence spot price update throttled:"+r)
 													);
 				}
 				break;
@@ -183,11 +185,11 @@ module.exports = NodeHelper.create({
 	 */
 	setupTeslaApi: function() {
 		this.teslaTimer = setInterval(() => {
-			this.teslaThrottler.execute( () => this.fetchTeslaCharge(),
+			this.teslaThrottler.execute( () => this.fetchTeslaChargeAsync(),
 										 (r) => console.log("TeslaCharge update throttled:"+r));
 		}, 5*60*1000);
 
-		this.fetchTeslaCharge();
+		this.fetchTeslaChargeAsync();
 	},
 
 	/**
@@ -203,11 +205,13 @@ module.exports = NodeHelper.create({
 			{
 				console.log("Fetching spot prices (no prices for today)");
 				await this.updateSpotPricesAsync();
+				await this.sendSpotPrices();
 			}
 			
 			schedule.scheduleJob('3 21 * * *', async () => { // Every day at 21:03
 				console.log("Scheduled job: Fetching spot prices at " + new Date().toLocaleTimeString());
 				await this.updateSpotPricesAsync();
+				await this.sendSpotPrices();
 			});
 			
 			// send spot prices to module every 15 minutes - cheap since we do caching
@@ -280,27 +284,15 @@ module.exports = NodeHelper.create({
 		}
 	},
 
-	// Done in fetchStorageDataAsync now
-
-	// fetchDiagramDataAsync: async function() {
-	// 	console.log(`node_helper ${this.name}: fetchDiagramDataAsync()`);
-
-	// 	if (!this.config){
-	// 		console.error(`node_helper ${this.name}: Configuration has not been set!`);
-	// 		return;
-	// 	}
-
-	// 	try {
-	// 		const diagramData = await this.solarEdgeApi.fetchDiagramData();
-	// 		this.sendSocketNotification("DIAGRAMDATA", diagramData);
-	// 		console.log(`node_helper ${this.name}: sent DIAGRAMDATA`);
-	// 	} catch (err) {
-	// 		console.error("Error fetching diagram data:", err);
-	// 	}
-	// },
-	
-	fetchTeslaCharge: function() {
-		console.log(`node_helper ${this.name}: fetchTeslaCharge()`);
+	/**
+	 * Fetches the current Tesla charge status.
+	 * If the car is sleeping, it is woken up by the QueryTesla command, so make sure that
+	 * the minimum time between calls is respected to avoid excessive wake-ups.
+	 * @param {boolean} wakeUp Whether to wake up the car if it is sleeping.
+	 * @return {Promise<void>}
+	 */
+	async fetchTeslaChargeAsync(wakeUp = false) {
+		console.log(`node_helper ${this.name}: fetchTeslaChargeAsync(${wakeUp})`);
 
 		if (!this.config){
 			console.error(`node_helper ${this.name}:Configuration has not been set!`);
@@ -308,24 +300,43 @@ module.exports = NodeHelper.create({
 		}
 
 		try{
-			var proc = spawn('/home/mav/tesla/QueryTesla', ['-getCharge']); // create a symbolic link in ~/tesla to the output folder from the QueryTesla project!
-			var out = "";
-			var err = "";
-			proc.stdout.on('data', function(data) { out += data; });
-			proc.stderr.on('data', function(data) { console.error(data); err += data; });
-			proc.on('exit', function() {
-				if (err != "") {
-					throw err;
-				} else {
-					var teslaData = JSON.parse(out);
-					this.teslaData = teslaData;
-					this.sendSocketNotification("TESLA", teslaData);
-					console.log(`node_helper ${this.name}: sent TESLA`);
-				}
-			});
+			const isAwake = JSON.parse((await this.callQueryTesla('-isAwake')).trim().toLowerCase());
+
+			if (wakeUp == false && !isAwake) {
+				console.log(`node_helper ${this.name}: Tesla is sleeping, not fetching charge status`);
+				return;
+			} else {
+				const teslaData = JSON.parse(await this.callQueryTesla('-getCharge'));
+				this.teslaData = teslaData;
+				this.sendSocketNotification("TESLA", teslaData);
+				console.log(`node_helper ${this.name}: sent TESLA`);
+			}
 		} catch (err) {
 			console.error("Error fetching Tesla charge status:", err);
 		}
+	},
+
+	/**
+	 * Calls the QueryTesla command with the given parameters, waits for the process to finish,
+	 * and returns the output.
+	 * @param {string} parameters parameters for QueryTesla
+	 * @returns Output from QueryTesla
+	 */
+	async callQueryTesla(parameters) {
+		console.log(`node_helper ${this.name}: callQueryTesla(${parameters})`);
+
+		return new Promise((resolve, reject) => {
+			execFile('/home/mav/tesla/QueryTesla', [parameters], (err, stdout, stderr) => {
+				if (err) {
+					console.error('Error calling QueryTesla:', err);
+					return reject(err);
+				}
+				if (stderr)
+					console.error('QueryTesla stderr:', stderr);
+
+				resolve(stdout);
+			});
+		});
 	},
 
 	/**

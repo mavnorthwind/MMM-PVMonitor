@@ -58,6 +58,7 @@ Module.register("MMM-PVMonitor", {
 	chart: undefined,
 
 
+
 	// Sent once after module registration.
 	// Init state, start times, send first socket notification to node_helper.
 	start: function() {
@@ -130,7 +131,7 @@ Module.register("MMM-PVMonitor", {
 		
 		if (notification === "TESLA") {
 			this.teslaData = payload;
-			this.updateDom(0);
+			this.updateTeslaData(payload);
 		}
 				
 		if (notification === "SPOTPRICES") {
@@ -246,6 +247,21 @@ Module.register("MMM-PVMonitor", {
 		return `${value} ${unit}`;
 	},
 
+	updateTeslaData: function (teslaData) {
+		console.log(`Module ${this.name}: updateTeslaData() called`);
+		
+		document.getElementById("teslaChargingState").innerHTML =
+			`Ladestatus: ${teslaData.chargingState}; noch ${teslaData.minutesToFullCharge} max. (Stand: ${new Date(teslaData.timestamp).toLocaleTimeString()})`;
+
+		const milesToKm = 1.609344;
+		var teslaBatteryLevel = teslaData ? teslaData.batteryLevel : "?";
+		var teslaBatteryRange = teslaData ? Math.round(teslaData.batteryRange * milesToKm) : "?";
+		var teslaEstimatedBatteryRange = teslaData ? Math.round(teslaData.estimatedBatteryRange * milesToKm) : "?";
+
+		var text = `${teslaBatteryLevel}% / ${teslaBatteryRange}(${teslaEstimatedBatteryRange})km`;
+		document.getElementById("teslaCharge").innerHTML = text;
+	},
+
 	/**
  	* Fills the HTML table template with current power flow data.
 	 * @param {*} powerFlow 
@@ -279,10 +295,10 @@ Module.register("MMM-PVMonitor", {
 			var flowSTORAGE2LOAD = this.hasFlow(powerFlow, "STORAGE", "LOAD") ? "" : "off";
 
 			var teslaImage = this.file("Images/Tesla_Model3_red.svg");
-			const milesToKm = 1.609344;
-			var teslaBatteryLevel = this.teslaData ? this.teslaData.batteryLevel : "?";
-			var teslaBatteryRange = this.teslaData ? Math.round(this.teslaData.batteryRange * milesToKm) : "?";
-			var teslaEstimatedBatteryRange = this.teslaData ? Math.round(this.teslaData.estimatedBatteryRange * milesToKm) : "?";
+			// const milesToKm = 1.609344;
+			// var teslaBatteryLevel = this.teslaData ? this.teslaData.batteryLevel : "?";
+			// var teslaBatteryRange = this.teslaData ? Math.round(this.teslaData.batteryRange * milesToKm) : "?";
+			// var teslaEstimatedBatteryRange = this.teslaData ? Math.round(this.teslaData.estimatedBatteryRange * milesToKm) : "?";
 
 			var teslaChargePower = this.teslaData ? this.teslaData.chargerPower : 0;
 			var teslaChargeCurrent = this.teslaData ? this.teslaData.chargerActualCurrent : 0;
@@ -319,7 +335,7 @@ Module.register("MMM-PVMonitor", {
 					<td class="MMPV_TD">
 						<span class="${teslaChargeClass} chargeAbove teslaCharge">Charge ${teslaChargeCurrent}A/${teslaChargePower}kW</span>
 						<img src="${teslaImage}" width="96px"/>
-						<span class="teslaCharge">${teslaBatteryLevel}% / ${teslaBatteryRange}(${teslaEstimatedBatteryRange})km</span>
+						<span class="teslaCharge" id="teslaCharge">UNKNOWN</span>
 					</td>
 				</tr>
 			</table>`;
@@ -338,10 +354,10 @@ Module.register("MMM-PVMonitor", {
 
 			var autarchy = this.autarchy ? Math.round(this.autarchy.percentage * 100) : "?";
 
-			var teslaTimestamp = this.teslaData ? new Date(this.teslaData.timestamp).toLocaleTimeString() : "?";
-			var teslaChargingState = this.teslaData ? this.teslaData.chargingState : "?";
-			var teslaState = this.teslaData ? this.teslaData.state : "?";
-			var teslamaxutesToFullCharge = this.teslaData ? this.teslaData.maxutesToFullCharge : 0;
+			// var teslaTimestamp = this.teslaData ? new Date(this.teslaData.timestamp).toLocaleTimeString() : "?";
+			// var teslaChargingState = this.teslaData ? this.teslaData.chargingState : "?";
+			// var teslaState = this.teslaData ? this.teslaData.state : "?";
+			// var teslamaxutesToFullCharge = this.teslaData ? this.teslaData.maxutesToFullCharge : 0;
 
 			const summary =
 			`<div class="summary">
@@ -356,8 +372,8 @@ Module.register("MMM-PVMonitor", {
 			<div class="summary">
 				Autarkie der letzten 30 Tage: ${autarchy} %
 			</div>
-			<div class="summary">
-				Ladestatus: ${teslaChargingState}; noch ${teslamaxutesToFullCharge} max. (Stand: ${teslaTimestamp})
+			<div class="summary" id="teslaChargingState">
+				Ladestatus: Unknown
 			</div>`;
 			return summary;
 		} catch (err) {
