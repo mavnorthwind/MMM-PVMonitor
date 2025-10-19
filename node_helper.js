@@ -71,43 +71,10 @@ module.exports = NodeHelper.create({
 			case "ENERGYCONFIG":
 				this.config = payload;
 				
-				try {
-					console.log("Creating SolaredgeAPI instance");
-					this.solarEdgeApi = new SolaredgeAPI(this.config.siteId, this.config.apiKey, this.config.inverterId);
+				this.setupSolarEdgeApi();
 
-					setInterval(async () => {
-						console.log("Scheduled job: Fetching storage data at " + new Date().toLocaleTimeString());
-						await this.fetchStorageDataAsync();
-					}, 15*60*1000);
-				} catch (error) {
-					console.error(`Error creating SolaredgeAPI instance: ${error}`);
-				}
+				await this.setupSpotPricesAsync();
 
-				try {
-					console.log("Creating SpotPrices instance");
-					this.spotPrices = new SpotPrices();
-
-					if (!this.spotPrices.hasPrices ||
-						this.spotPrices.maxDate < new Date()) // No prices for today
-					{
-						console.log("Fetching spot prices (no prices for today)");
-						await this.spotPrices.updateSpotPricesAsync();
-					}
-
-					
-					schedule.scheduleJob('3 17 * * *', async () => { // Every day at 17:03
-						console.log(`Scheduled job: Fetching spot prices at ${new Date().toLocaleTimeString()}`);
-						await this.spotPrices.updateSpotPricesAsync(0,1);
-					});
-					
-					// send spot prices to module every 15 minutes - cheap since we do caching
-					setInterval(async () => {
-					 	await this.sendSpotPrice();
-					}, 15*60*1000);
-
-				} catch(error) {
-					console.error(`Request for spotPrice returned error  ${error}`);
-				}
 /*
 				if (this.timer)
 					clearInterval(this.timer);
@@ -149,10 +116,19 @@ module.exports = NodeHelper.create({
 				console.log(`node_helper ${this.name}: GETSTORAGEDATA`);
 				await this.fetchStorageDataAsync();
 				break;
-			case "GETSPOTPRICE":
-				console.log(`node_helper ${this.name}: GETSPOTPRICE`);
-				await this.sendSpotPrice();
+
+			case "GETSPOTPRICES": // payload: boolean - whether to update prices
+				console.log(`node_helper ${this.name}: GETSPOTPRICES Update: ${payload}`);
+				if (payload) {
+					try {
+						await this.spotPrices.updateSpotPricesAsync();
+					} catch (error) {
+						console.error(`Error updating spot prices: ${error}`);
+					}
+				}
+				this.sendSpotPrices();
 				break;
+
 			case "GETSITEDETAILS":
 				console.log(`node_helper ${this.name}: GETSITEDETAILS`);
 				await this.fetchSiteDetailsAsync();
@@ -162,17 +138,54 @@ module.exports = NodeHelper.create({
 				console.log(`node_helper ${this.name}: USER_PRESENCE ${payload}`);
 				if (payload) // User is present
 				{
-					await this.sendSpotPrice();
+					await this.sendSpotPrices();
 				}
 				break;
 		}
 	},
 
+	setupSolarEdgeApi: function() {
+		try {
+			console.log("Creating SolaredgeAPI instance");
+			this.solarEdgeApi = new SolaredgeAPI(this.config.siteId, this.config.apiKey, this.config.inverterId);
 
+			setInterval(async () => {
+				console.log("Scheduled job: Fetching storage data at " + new Date().toLocaleTimeString());
+				await this.fetchStorageDataAsync();
+			}, 15*60*1000);
+		} catch (error) {
+			console.error(`Error creating SolaredgeAPI instance: ${error}`);
+		}
+	},
+
+	setupSpotPricesAsync: async function() {
+		try {
+			console.log("Creating SpotPrices instance");
+			this.spotPrices = new SpotPrices();
+
+			if (!this.spotPrices.hasPrices ||
+				this.spotPrices.maxDate < new Date()) // No prices for today
+			{
+				console.log("Fetching spot prices (no prices for today)");
+				await this.updateSpotPricesAsync();
+			}
+			
+			schedule.scheduleJob('3 21 * * *', async () => { // Every day at 21:03
+				await this.updateSpotPricesAsync();
+			});
+			
+			// send spot prices to module every 15 minutes - cheap since we do caching
+			setInterval(async () => {
+				await this.sendSpotPrices();
+			}, 15*60*1000);
+
+		} catch(error) {
+			console.error(`Request for spotPrice returned error  ${error}`);
+		}
+	},
 
 	fetchPowerFlow: async function() {
-		
-
+	
 		if (!this.config){
 			console.error(`node_helper ${this.name}:Configuration has not been set!`);
 			return;
@@ -277,15 +290,31 @@ module.exports = NodeHelper.create({
 		}
 	},
 	
+
+	updateSpotPricesAsync: async function(maxAttempts = 5) {
+		for (let attempt=1; attempt <= maxAttempts; attempt++) {
+			try {
+				console.log(`Scheduled job: Try #${attempt} fetching spot prices at ${new Date().toLocaleTimeString()}`);
+				await this.spotPrices.updateSpotPricesAsync(0,1);
+				console.log(`Successfully updated spot prices in scheduled job`);
+				return;
+			} catch (error) {
+				console.error(`Error updating spot prices in scheduled job: ${error}`);
+				await new Promise(resolve => setTimeout(resolve, attempt * 10000)); // Wait longer between attempts
+			}
+		}
+		console.error(`Giving up after ${maxAttempts} attempts to update spot prices in scheduled job`);
+	},
+
 	/**
 	 * Sends current spot price data to the module.
 	 * Does NOT fetch new data; update is done periodically elsewhere.
 	 */
-	sendSpotPrice: function() {
-		console.log(`node_helper ${this.name}: sendSpotPrice()`);
+	sendSpotPrices: function() {
+		console.log(`node_helper ${this.name}: sendSpotPrices()`);
 
 		try {
-			this.sendSocketNotification("SPOTPRICE", {
+			this.sendSocketNotification("SPOTPRICES", {
 				currentPrice: this.spotPrices.currentPrice,
 				currentPriceDate: this.spotPrices.currentPriceDate,
 				minTodayPrice: this.spotPrices.minTodayPrice,
@@ -297,7 +326,7 @@ module.exports = NodeHelper.create({
 				unit: this.spotPrices.unit,
 				updateTimestamp: this.spotPrices.updateTimestamp,
 			});
-			console.log(`node_helper ${this.name}: sent SPOTPRICE`);
+			console.log(`node_helper ${this.name}: sent SPOTPRICES`);
 		} catch(error) {
 			console.error(`Request for spotPrice returned error  ${error}`);
 		}

@@ -74,7 +74,7 @@ Module.register("MMM-PVMonitor", {
 
 			// Initial update
 			this.sendSocketNotification("GETSTORAGEDATA"); // Will trigger an update of the diagram when data is received
-			this.sendSocketNotification("GETSPOTPRICE"); // Will trigger an update of the diagram when data is received
+			this.sendSocketNotification("GETSPOTPRICES"); // Will trigger an update of the diagram when data is received
 
 			this.sendSocketNotification("GETSITEDETAILS");
 		}, 1000);
@@ -132,9 +132,9 @@ Module.register("MMM-PVMonitor", {
 			this.updateDom(0);
 		}
 				
-		if (notification === "SPOTPRICE") {
+		if (notification === "SPOTPRICES") {
 			this.spotPrices = payload;
-			console.log("SPOTPRICE received:", this.spotPrices);
+			console.log("SPOTPRICES received:", this.spotPrices);
 
 			const spotPriceDataset = [];
 			this.spotPrices.prices.forEach((val, index, array) => {
