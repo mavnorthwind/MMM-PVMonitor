@@ -56,7 +56,7 @@ module.exports = NodeHelper.create({
 		}
 		
 		this.teslaThrottler = new Throttler();
-		this.teslaThrottler.minimumTimeBetweenCalls = 60*60*1000; // Once every 60 minutes
+//		this.teslaThrottler.minimumTimeBetweenCalls = 60*60*1000; // Once every 60 minutes
 		this.teslaThrottler.setThrottleHours(22, 6);
 		this.teslaThrottler.setOverrideThrottleCallback((t, reason) => {
 			// Don't throttle while charging
@@ -130,7 +130,7 @@ module.exports = NodeHelper.create({
 				await this.fetchAutarchyAsync();
 				break;
 
-			case "GETTESLACHARGE":
+			case "GETTESLACHARGE": // payload: boolean - whether to wake up Tesla
 				console.log(`node_helper ${this.name}: GETTESLACHARGE`);
 				this.teslaThrottler.execute(async() => await this.fetchTeslaChargeAsync(payload),
 											(r) => console.error("TeslaCharge update throttled:"+r));
@@ -350,7 +350,7 @@ module.exports = NodeHelper.create({
 			try {
 				console.log(`Try #${attempt} fetching spot prices at ${new Date().toLocaleTimeString()}`);
 				await this.spotPrices.updateSpotPricesAsync(0,1);
-				console.log(`Successfully updated spot prices`);
+				console.log(`Successfully updated spot prices on attempt #${attempt}`);
 				return true;
 			} catch (error) {
 				console.error(`Error updating spot prices: ${error}`);

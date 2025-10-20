@@ -418,7 +418,7 @@ Module.register("MMM-PVMonitor", {
 		if (this.wrapper == undefined) {
 			const html = `<div id='powerflowTable' class='powerflow'><div id="powerflowLoading">Loading Powerflow Table...</div></div>
 				<div id="batteryDiagram" class="battery"><div id="batteryLoading">Loading Battery Diagram...</div><canvas id="batteryChart"></canvas></div>
-				<p id="summary"><div id="summaryLoading">Loading Summary...</div></p>`;
+				<div id="summary"><div id="summaryLoading">Loading Summary...</div></div>`;
 
 			var wrapper = document.createElement("div");
 			wrapper.id = "MMM-PVMonitorWrapper";

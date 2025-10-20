@@ -105,6 +105,9 @@ class SpotPrices {
      * Fetch spot prices, save to cache and update internal variables
      * The range of data fetched goes back <daysBack> at 00:00:00 and
      * forward <daysForward> at 23:59:59
+     * 
+     * Throws error on failure
+     * 
      * @param {number} daysBack
      * @param {number} daysForward 
      */
@@ -134,6 +137,7 @@ class SpotPrices {
             this.#readCachedPrices();
         } catch(error) {
             console.error(`Request for spot prices from ${spotPricesUrl} returned error:`, error);
+            throw error;
         }
     }
 
