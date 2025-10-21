@@ -41,7 +41,7 @@ module.exports = NodeHelper.create({
 		this.throttlerPowerFlow = new Throttler();
 		this.throttlerPowerFlow.minimumTimeBetweenCalls = 5*60*1000;
 		this.throttlerPowerFlow.maxCallsPerDay = 300;
-		this.throttlerPowerFlow.setThrottleHours(22, 8);
+		this.throttlerPowerFlow.setThrottleHours(22, 5);
 
 		// this.throttlerPowerFlow.logThrottlingConditions();
 
