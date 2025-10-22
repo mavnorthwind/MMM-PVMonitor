@@ -609,6 +609,23 @@ Module.register("MMM-PVMonitor", {
 			else
 				this.chart.data.datasets[dataSetIndex].label = "HIDDEN"; // this label gets filtered out in legend
 
+			// If the current x axis' range does not cover today, update it
+			const now = new Date();
+			// Create "today 00:00:00" (start of X axis)
+			const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+			// Create "tomorrow 00:00:00" (end of X axis)
+			const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0, 0, 0);
+
+			const currentMin = this.chart.options.scales.x.min;
+
+			if (currentMin < startOfDay) // chart shows yesterday's data
+			{
+				console.log(`Updating chart's x axis to show new day from ${startOfDay} to ${endOfDay}`)
+				this.chart.options.scales.x.min = startOfDay;
+				this.chart.options.scales.x.max = endOfDay;
+			}
+
+
 			this.chart.update();
 		}
 	},

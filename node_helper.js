@@ -32,6 +32,7 @@ module.exports = NodeHelper.create({
 	solarEdgeApi: undefined,
 	spotPrices: undefined,
 	userPresenceThrottler: undefined,
+	storageThrottler: undefined,
 
 
 	start: function() {
@@ -66,6 +67,9 @@ module.exports = NodeHelper.create({
 
 		this.userPresenceThrottler = new Throttler();
 		this.userPresenceThrottler.minimumTimeBetweenCalls = 5*60*1000; // Once every 5 minutes
+
+		this.storageThrottler = new Throttler();
+		this.storageThrottler.setThrottleHours(23, 5);
 
 		console.log(`node_helper ${this.name}: Started module`);
 	},
@@ -173,7 +177,9 @@ module.exports = NodeHelper.create({
 			// Schedule storage data fetch every 15 minutes
 			this.timerStorage = setInterval(async () => {
 				console.log(`node_helper ${this.name}: Scheduled job: Fetching storage data at ${new Date().toLocaleTimeString()}`);
-				await this.fetchStorageDataAsync();
+				this.storageThrottler.execute( async () => { await this.fetchStorageDataAsync(); },
+											   (r) => console.err(`fetchStorageDataAsync() throttled due to ${r}`)
+				);
 			}, 15*60*1000);
 		} catch (error) {
 			console.error(`Error creating SolaredgeAPI instance: ${error}`);
