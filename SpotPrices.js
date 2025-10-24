@@ -20,9 +20,6 @@ class SpotPrices {
     #minDate = undefined;
     #maxDate = undefined;
 
-    #minTodayPriceIndex = undefined;
-    #maxTodayPriceIndex = undefined;
-
     /**
      * Create a new SpotPrices instance
      */
@@ -55,14 +52,45 @@ class SpotPrices {
     get updateTimestamp() { return new Date(this.#updateTimestamp); }
 
 
+    /**
+     * Returns the first Date in the dataset
+     */
     get minDate() { return this.#minDate; }
+    /**
+     * Returns the last Date in the dataset
+     */
     get maxDate() { return this.#maxDate; }
 
-    get minTodayPrice() { return this.#prices[this.#minTodayPriceIndex]; }
-    get maxTodayPrice() { return this.#prices[this.#maxTodayPriceIndex]; }
+    /**
+     * Returns the minimum price for today
+     */
+    get minTodayPrice() { 
+        var extremaIndices = this.#getTodayHighLowIndex(this.#dates, this.#prices);
+        return this.#prices[extremaIndices.minIndex]; 
+    }
+    /**
+     * Returns the maximum price for today
+     */
+    get maxTodayPrice() { 
+        var extremaIndices = this.#getTodayHighLowIndex(this.#dates, this.#prices);
+        return this.#prices[extremaIndices.maxIndex]; 
+    }
 
-    get minTodayPriceDate() { return this.#dates[this.#minTodayPriceIndex]; }
-    get maxTodayPriceDate() { return this.#dates[this.#maxTodayPriceIndex]; }
+    /**
+     * Returns the DateTime of today's minimum price
+     */
+    get minTodayPriceDate() { 
+        var extremaIndices = this.#getTodayHighLowIndex(this.#dates, this.#prices);
+        return this.#dates[extremaIndices.minIndex]; 
+    }
+
+    /**
+     * Returns the DateTime of today's maximum price
+     */
+    get maxTodayPriceDate() {
+        var extremaIndices = this.#getTodayHighLowIndex(this.#dates, this.#prices);
+        return this.#dates[extremaIndices.maxIndex]; 
+    }
 
     /**
      * Current spot price
@@ -142,19 +170,6 @@ class SpotPrices {
     }
 
     /**
-     * Take only the last part of an array from a given index
-     * @param {Array} array The array to recude
-     * @param {Number} startIdx Start index to start with
-     * @returns The end of the array, starting at startIdx
-     */
-    #takeEndFrom(array, startIdx = 0) {
-        if (!Array.isArray(array) || array.length === 0) return -1;
-        if (startIdx < 0 || startIdx >= array.length) return -1;
-
-        return array.slice(startIdx);
-    }
-
-    /**
      * Find index of the entry with a timestamp closest and below the given date
      * Requires dates to be sorted
      * @param {Array} datesArray 
@@ -193,6 +208,7 @@ class SpotPrices {
         let lowestIndex = -1;
         let highestPrice = -Infinity;
         let lowestPrice = Infinity;
+        let hasTodaysPrices = false;
 
         for (let i = 0; i < dates.length; i++) {
             const d = dates[i];
@@ -202,6 +218,8 @@ class SpotPrices {
 
             const key = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
             if (key === today) {
+                hasTodaysPrices = true;
+
                 const p = prices[i];
                 if (typeof p !== 'number' || isNaN(p)) {
                     throw new Error(`Ungültiger Preis an Index ${i}`);
@@ -218,7 +236,10 @@ class SpotPrices {
             }
         }
 
-        return { highestIndex, lowestIndex };
+        if (!hasTodaysPrices)
+            throw new error(`Don't have today's prices to determine min and max for today! Available data range: ${this.minDate}-${this.maxDate}`);
+
+        return { minIndex: lowestIndex, maxIndex: highestIndex };
     }
 
     /**
@@ -243,11 +264,6 @@ class SpotPrices {
 
                 this.#minDate = new Date(Math.min(...this.#dates));
                 this.#maxDate = new Date(Math.max(...this.#dates));
-
-                const { highestIndex, lowestIndex } = this.#getTodayHighLowIndex(this.#dates, this.#prices);
-
-                this.#minTodayPriceIndex = lowestIndex;
-                this.#maxTodayPriceIndex = highestIndex;
 
                 this.#updateTimestamp = this.#spotpricedata.updateTimestamp;
                 return true;
