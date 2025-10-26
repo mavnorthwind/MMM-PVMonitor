@@ -314,6 +314,26 @@ module.exports = NodeHelper.create({
 			} else {
 				const teslaData = JSON.parse(await this.callQueryTesla('-getCharge'));
 				this.teslaData = teslaData;
+
+				// {
+				// 	"vin": "....",
+				// 	"displayName": "....",
+				// 	"state": "online",
+				// 	"locked": true,
+				// 	"odometer": 22827.142454,
+				// 	"batteryLevel": 53,
+				// 	"batteryRange": 176.18,
+				// 	"estimatedBatteryRange": 176.18,
+				// 	"chargingState": "Stopped",
+				// 	"minutesToFullCharge": 0,
+				// 	"chargerActualCurrent": 0,
+				// 	"chargeAmps": 16,
+				// 	"chargerPower": 0,
+				// 	"chargeEnergyAdded": 0,
+				// 	"chargeLimitStateOfCharge": 70,
+				// 	"timestamp": 1761296565625
+				// }
+
 				this.sendSocketNotification("TESLA", teslaData);
 				console.log(`node_helper ${this.name}: sent TESLA`);
 			}
@@ -327,6 +347,25 @@ module.exports = NodeHelper.create({
 	 * and returns the output.
 	 * @param {string} parameters parameters for QueryTesla
 	 * @returns Output from QueryTesla
+	 * Sample output:
+	 * {
+			"vin": "....",
+			"displayName": "....",
+			"state": "online",
+			"locked": true,
+			"odometer": 22827.142454,
+			"batteryLevel": 53,
+			"batteryRange": 176.18,
+			"estimatedBatteryRange": 176.18,
+			"chargingState": "Stopped",
+			"minutesToFullCharge": 0,
+			"chargerActualCurrent": 0,
+			"chargeAmps": 16,
+			"chargerPower": 0,
+			"chargeEnergyAdded": 0,
+			"chargeLimitStateOfCharge": 70,
+			"timestamp": 1761296565625
+		}
 	 */
 	async callQueryTesla(parameters) {
 		console.log(`node_helper ${this.name}: callQueryTesla(${parameters})`);
