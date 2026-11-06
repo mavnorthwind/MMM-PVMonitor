@@ -14,7 +14,9 @@ const schedule = require('node-schedule');
 module.exports = NodeHelper.create({
 	config: undefined,
 	timerPowerFlow: undefined,
-	timerEnergy: undefined,
+	timerStorage: undefined,
+	dailyJob: undefined,
+	cache: {},
 	throttlerPowerFlow: undefined,
 	teslaThrottler: undefined,
 	teslaTimer: undefined,
@@ -40,11 +42,10 @@ module.exports = NodeHelper.create({
 		console.log(`node_helper ${this.name}: Starting module`);
 
 		this.throttlerPowerFlow = new Throttler();
-		this.throttlerPowerFlow.minimumTimeBetweenCalls = 5*60*1000;
-		this.throttlerPowerFlow.maxCallsPerDay = 300;
-		this.throttlerPowerFlow.setThrottleHours(22, 5);
-
-		// this.throttlerPowerFlow.logThrottlingConditions();
+		// Free tier: ~2000 credits per month, a power flow update costs 2 credits.
+		// Active hours (config activeFrom/activeUntil) are checked in isActiveTime().
+		this.throttlerPowerFlow.minimumTimeBetweenCalls = 29*60*1000;
+		this.throttlerPowerFlow.maxCallsPerDay = 40;
 
 		try {
 			if (fs.existsSync("maxPower.json")) {
@@ -81,10 +82,10 @@ module.exports = NodeHelper.create({
 					console.log(`node_helper ${this.name}: Re-configuring module`);
 					if (this.timerPowerFlow)
 						clearInterval(this.timerPowerFlow);
-					if (this.timerEnergy)
-						clearInterval(this.timerEnergy);
-					if (this.timerDiagram)
-						clearInterval(this.timerDiagram);
+					if (this.timerStorage)
+						clearInterval(this.timerStorage);
+					if (this.dailyJob)
+						this.dailyJob.cancel();
 					if (this.teslaTimer)
 						clearInterval(this.teslaTimer);
 				}
@@ -97,10 +98,18 @@ module.exports = NodeHelper.create({
 
 				this.setupTeslaApi();
 
-				await this.fetchSiteDetailsAsync();
-				this.throttlerPowerFlow.forceExecute(() => this.fetchPowerFlowAsync());
-				this.fetchProductionAsync();
-				this.fetchAutarchyAsync();
+				// Re-sent cached data on reconfiguration (e.g. browser reload) to save API credits
+				if (this.cache.siteDetails) this.sendSocketNotification("SITEDETAILS", this.cache.siteDetails);
+				else await this.fetchSiteDetailsAsync();
+
+				if (this.cache.powerflow) this.sendSocketNotification("POWERFLOW", this.cache.powerflow);
+				else this.throttlerPowerFlow.forceExecute(() => this.fetchPowerFlowAsync());
+
+				if (this.cache.production) this.sendSocketNotification("PRODUCTION", this.cache.production);
+				else this.fetchProductionAsync();
+
+				if (this.cache.autarchy) this.sendSocketNotification("AUTARCHY", this.cache.autarchy);
+				else this.fetchAutarchyAsync();
 				
 				this.teslaThrottler.forceExecute(() => this.fetchTeslaChargeAsync());
 				break;
@@ -158,23 +167,31 @@ module.exports = NodeHelper.create({
 	setupSolarEdgeApi: function() {
 		try {
 			console.log(`node_helper ${this.name}: Creating SolaredgeAPI instance`);
-			this.solarEdgeApi = new SolaredgeAPI(this.config.siteId, this.config.apiKey, this.config.inverterId);
+			this.solarEdgeApi = new SolaredgeAPI(this.config.siteId,
+												 this.config.accessToken,
+												 this.config.refreshToken,
+												 this.config.clientId,
+												 this.config.clientSecret);
 
-			// Schedule power flow fetch according to config interval
+			// Schedule power flow fetch according to config interval, only during active hours
 			this.timerPowerFlow = setInterval(() => {
+				if (!this.isActiveTime()) {
+					console.log(`node_helper ${this.name}: outside active hours, skipping PowerFlow update`);
+					return;
+				}
 				this.throttlerPowerFlow.execute(() => this.fetchPowerFlowAsync(),
 												(r) => console.log("PowerFlow update throttled:"+r));
 			}, this.config.interval);
 			console.log(`node_helper ${this.name}: interval set to ${this.config.interval}`);
 
-			// Schedule production and autarchy fetch every hour
-			this.timerEnergy = setInterval(() => {
+			// Production, autarchy and site details once a day, shortly after midnight
+			this.dailyJob = schedule.scheduleJob('10 0 * * *', () => {
+				this.fetchSiteDetailsAsync();
 				this.fetchProductionAsync();
 				this.fetchAutarchyAsync();
-			}, 60*60*1000);
+			});
 
-
-			// Schedule storage data fetch every 15 minutes
+			// Send storage data to the module every 15 minutes (served from the power flow data, costs no credits)
 			this.timerStorage = setInterval(async () => {
 				console.log(`node_helper ${this.name}: Scheduled job: Fetching storage data at ${new Date().toLocaleTimeString()}`);
 				this.storageThrottler.execute( async () => { await this.fetchStorageDataAsync(); },
@@ -230,6 +247,14 @@ module.exports = NodeHelper.create({
 		}
 	},
 
+	isActiveTime: function() {
+		const toMinutes = (s) => { const [h, m] = s.split(":").map(Number); return h*60 + (m || 0); };
+		const now = new Date();
+		const minutes = now.getHours()*60 + now.getMinutes();
+		return minutes >= toMinutes(this.config.activeFrom || "06:00") &&
+			   minutes <= toMinutes(this.config.activeUntil || "21:30");
+	},
+
 	fetchPowerFlowAsync: async function() {
 	
 		if (!this.config){
@@ -237,20 +262,26 @@ module.exports = NodeHelper.create({
 			return;
 		}
 
-		const powerFlow = await this.solarEdgeApi.fetchCurrentPowerFlow();
+		try {
+			const powerFlow = await this.solarEdgeApi.fetchCurrentPowerFlow();
 
-		var d = new Date();
-		this.productionSpan.day = d.getDay();
-		this.productionSpan.firstProduction =
-		this.productionSpan.lastProduction = "-";
+			var d = new Date();
+			this.productionSpan.day = d.getDay();
+			this.productionSpan.firstProduction =
+			this.productionSpan.lastProduction = "-";
 
-		const powerflowReply = {
-			powerflow: powerFlow,
-			productionSpan: this.productionSpan,
-			requestCount: this.throttlerPowerFlow.todaysCallCount
-		};
+			const powerflowReply = {
+				powerflow: powerFlow,
+				productionSpan: this.productionSpan,
+				requestCount: this.throttlerPowerFlow.todaysCallCount
+			};
 
-		this.sendSocketNotification("POWERFLOW", powerflowReply);
+			this.cache.powerflow = powerflowReply;
+			this.sendSocketNotification("POWERFLOW", powerflowReply);
+		} catch (err) {
+			console.error("Error fetching power flow:", err);
+			this.sendSocketNotification("PVERROR", `${err}`);
+		}
 	},
 
 	fetchProductionAsync: async function() {
@@ -259,8 +290,14 @@ module.exports = NodeHelper.create({
 			return;
 		}
 
-		const production = await this.solarEdgeApi.fetchProduction();
-		this.sendSocketNotification("PRODUCTION", production);
+		try {
+			const production = await this.solarEdgeApi.fetchProduction();
+			this.cache.production = production;
+			this.sendSocketNotification("PRODUCTION", production);
+		} catch (err) {
+			console.error("Error fetching production:", err);
+			this.sendSocketNotification("PVERROR", `${err}`);
+		}
 	},
 
 	fetchSiteDetailsAsync: async function() {
@@ -269,8 +306,14 @@ module.exports = NodeHelper.create({
 			return;
 		}
 
-		const siteDetails = await this.solarEdgeApi.fetchSiteDetails();
-		this.sendSocketNotification("SITEDETAILS", siteDetails);
+		try {
+			const siteDetails = await this.solarEdgeApi.fetchSiteDetails();
+			this.cache.siteDetails = siteDetails;
+			this.sendSocketNotification("SITEDETAILS", siteDetails);
+		} catch (err) {
+			console.error("Error fetching site details:", err);
+			this.sendSocketNotification("PVERROR", `${err}`);
+		}
 	},
 
 	fetchAutarchyAsync: async function() {
@@ -283,6 +326,7 @@ module.exports = NodeHelper.create({
 
 		try{
 			const autarchy = await this.solarEdgeApi.fetchAutarchy();
+			this.cache.autarchy = autarchy;
 			this.sendSocketNotification("AUTARCHY", autarchy);
 			console.log(`node_helper ${this.name}: sent AUTARCHY`);
 		} catch (err) {

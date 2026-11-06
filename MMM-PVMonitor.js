@@ -14,9 +14,13 @@ Module.register("MMM-PVMonitor", {
 	// Default module config.
 	defaults: {
 		siteId: "123456",
-		inverterId: "12345678-9A",
-		apiKey: "INSERT-API-KEY-HERE",
-		interval: 1000*60*15
+		accessToken: "INSERT-ACCESS-TOKEN-HERE",
+		refreshToken: "INSERT-REFRESH-TOKEN-HERE",
+		clientId: "INSERT-CLIENT-ID-HERE",
+		clientSecret: "INSERT-CLIENT-SECRET-HERE",
+		activeFrom: "06:00",
+		activeUntil: "21:30",
+		interval: 1000*60*30
 	},
 
 

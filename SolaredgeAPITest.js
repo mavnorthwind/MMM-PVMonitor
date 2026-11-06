@@ -13,10 +13,12 @@ function getEnvVar(varName) {
 }
 
 const siteId = getEnvVar("SOLAREDGE_SITEID");
-const apikey = getEnvVar("SOLAREDGE_APIKEY");
-const inverterId = getEnvVar("SOLAREDGE_INVERTERID");
+const accessToken = getEnvVar("SOLAREDGE_ACCESSTOKEN");
+const refreshToken = getEnvVar("SOLAREDGE_REFRESHTOKEN");
+const clientId = getEnvVar("SOLAREDGE_CLIENTID");
+const clientSecret = getEnvVar("SOLAREDGE_CLIENTSECRET");
 
-const api = new SolaredgeAPI(siteId, apikey, inverterId);
+const api = new SolaredgeAPI(siteId, accessToken, refreshToken, clientId, clientSecret);
 
 (async function main() {
     var details = await api.fetchSiteDetails();
@@ -24,7 +26,8 @@ const api = new SolaredgeAPI(siteId, apikey, inverterId);
 
     var powerFlow = await api.fetchCurrentPowerFlow();
     console.log(`Power flow: ${JSON.stringify(powerFlow, null, 2)}`);
-    console.log(`Battery charge: ${powerFlow.STORAGE.chargeLevel}`);
+    if (powerFlow.STORAGE)
+        console.log(`Battery charge: ${powerFlow.STORAGE.chargeLevel}`);
 
     var production = await api.fetchProduction();
     console.log(`Production: ${JSON.stringify(production,null,2)}`);
@@ -32,6 +35,7 @@ const api = new SolaredgeAPI(siteId, apikey, inverterId);
     var autarchy = await api.fetchAutarchy();
     console.log(`Autarchy: ${JSON.stringify(autarchy,null,2)}`);
 
-    var diagramData = await api.fetchDiagramData();
-    console.log(`DiagramData: ${JSON.stringify(diagramData,null,2)}`);
+    var now = new Date();
+    var storageData = await api.fetchStorageData(new Date(now.getFullYear(), now.getMonth(), now.getDate()), now);
+    console.log(`StorageData: ${JSON.stringify(storageData,null,2)}`);
 })();
