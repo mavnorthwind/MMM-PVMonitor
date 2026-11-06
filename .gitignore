@@ -144,3 +144,6 @@ Thumbs.db
 spotPricesCache.json
 storageData.json
 inverterData.json
+
+# API docs
+docs/
